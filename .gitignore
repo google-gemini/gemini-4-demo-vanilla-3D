@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+.venv/
+venv/
+output/
+/renders/*
+!/renders/sunlit_library_1600x1200.png
+.github/workflows/
+.ruff_cache/
