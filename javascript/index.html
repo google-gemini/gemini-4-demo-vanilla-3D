@@ -1,0 +1,4810 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2026 Google LLC
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A sunlit concrete library, built from pure math and light</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ground: #F6F3EC;
+      --surface: #EAE4D8;
+      --border: #D6CFC3;
+      --ink: #1C1B18;
+      --muted: #57534D;
+      --accent: #9E472A;
+      --frame-bg: #181613;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      background-color: var(--ground);
+      color: var(--ink);
+      font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 18px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+    }
+
+    .page-shell {
+      width: 100%;
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 12px 32px 48px;
+    }
+
+    .hero-header {
+      width: 100%;
+      padding: 40px 24px 32px;
+      text-align: center;
+      margin: 0 auto;
+    }
+
+    h1,
+    .hero-title {
+      font-family: "Newsreader", Georgia, serif;
+      font-weight: 500;
+      font-size: clamp(2.35rem, 4vw, 3.45rem);
+      line-height: 1.08;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      text-wrap: balance;
+      max-width: 22ch;
+      margin: 0 auto;
+    }
+
+    .stage-workspace {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stage-frame {
+      position: relative;
+      width: 1120px;
+      max-width: 100%;
+      height: 546px;
+      background-color: var(--frame-bg);
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 32px rgba(28, 27, 24, 0.08);
+      overflow: hidden;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .stage-frame canvas {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      display: block;
+      pointer-events: none;
+    }
+
+    /* Tactile Edge & Corner Resize Handles */
+    .handle-e {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 16px;
+      height: calc(100% - 28px);
+      cursor: ew-resize;
+      z-index: 4;
+      border-right: 2px solid transparent;
+      transition: border-color 0.14s ease, background-color 0.14s ease;
+    }
+
+    .handle-e::after {
+      content: "";
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 36px;
+      border-radius: 2px;
+      background-color: rgba(246, 243, 236, 0.78);
+      border: 1px solid rgba(28, 27, 24, 0.38);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+      transition: background-color 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+    }
+
+    .handle-s {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: calc(100% - 28px);
+      height: 16px;
+      cursor: ns-resize;
+      z-index: 4;
+      border-bottom: 2px solid transparent;
+      transition: border-color 0.14s ease, background-color 0.14s ease;
+    }
+
+    .handle-s::after {
+      content: "";
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background-color: rgba(246, 243, 236, 0.78);
+      border: 1px solid rgba(28, 27, 24, 0.38);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+      transition: background-color 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+    }
+
+    .handle-e:hover,
+    .handle-e.is-active {
+      border-right-color: var(--accent);
+      background-color: rgba(158, 71, 42, 0.12);
+    }
+
+    .handle-e:hover::after,
+    .handle-e.is-active::after {
+      background-color: var(--accent);
+      border-color: #FAF7F2;
+      transform: translateY(-50%) scaleY(1.12);
+    }
+
+    .handle-s:hover,
+    .handle-s.is-active {
+      border-bottom-color: var(--accent);
+      background-color: rgba(158, 71, 42, 0.12);
+    }
+
+    .handle-s:hover::after,
+    .handle-s.is-active::after {
+      background-color: var(--accent);
+      border-color: #FAF7F2;
+      transform: translateX(-50%) scaleX(1.12);
+    }
+
+    .handle-se {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 28px;
+      height: 28px;
+      cursor: nwse-resize;
+      z-index: 5;
+      background-color: var(--surface);
+      color: var(--ink);
+      border-top: 1px solid var(--border);
+      border-left: 1px solid var(--border);
+      box-shadow: -2px -2px 6px rgba(24, 22, 19, 0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+    }
+
+    .handle-se svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+      pointer-events: none;
+    }
+
+    .handle-se:hover,
+    .handle-se.is-active {
+      background-color: var(--accent);
+      color: #FAF7F2;
+      border-top-color: var(--accent);
+      border-left-color: var(--accent);
+    }
+
+    .stage-caption {
+      width: 1120px;
+      max-width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 2px 0;
+      font-size: 0.875rem;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    .stage-dims {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.778rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 720px) {
+      .page-shell {
+        padding: 12px 16px 36px;
+      }
+
+      .hero-header {
+        padding: 28px 12px 22px;
+      }
+
+      .stage-frame {
+        height: 440px;
+      }
+
+      .stage-caption {
+        font-size: 0.8125rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero-header">
+      <h1 class="hero-title">A sunlit concrete library, built from pure math and light</h1>
+    </header>
+
+    <figure class="stage-workspace" id="stage-workspace">
+      <div class="stage-frame" id="stage-frame">
+        <canvas id="c" aria-label="Sunlit board-formed concrete library with walnut bookcase and Mediterranean coastal view"></canvas>
+        <div class="handle-e" id="handle-e" role="separator" aria-orientation="vertical" aria-label="Resize frame width" title="Drag to resize width"></div>
+        <div class="handle-s" id="handle-s" role="separator" aria-orientation="horizontal" aria-label="Resize frame height" title="Drag to resize height"></div>
+        <div class="handle-se" id="handle-se" role="separator" aria-label="Resize frame corner" title="Drag corner to resize frame">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <path d="M13 3L3 13M13 7.5L7.5 13M13 12L12 13"/>
+          </svg>
+        </div>
+      </div>
+      <figcaption class="stage-caption" id="stage-caption">
+        <span>Drag the bottom-right corner or edges to resize the frame and reshape the room.</span>
+        <span class="stage-dims" id="readout-dims">1120 × 546</span>
+      </figcaption>
+    </figure>
+  </div>
+
+  <script>
+/**
+ * Sunlit Board-Formed Concrete & Walnut Library
+ * =============================================
+ * Real-Time Multi-Pass WebGL2 Architectural Ray-Tracing & Radiosity Engine
+ */
+
+window.paintDone = false;
+window.paintReady = new Promise((resolve) => {
+  window.__resolvePaintReady = resolve;
+});
+
+(function () {
+  "use strict";
+
+  let WIDTH = 1600;
+  let HEIGHT = 1200;
+  const SEED = 20301;
+  const PI = Math.PI;
+
+
+  // ============================================================================
+  // 1. MATHEMATICAL & OPTICAL UTILITY FUNCTIONS
+  // ============================================================================
+
+  function saturate(x) {
+    return x < 0.0 ? 0.0 : x > 1.0 ? 1.0 : x;
+  }
+
+  function clamp(x, lo, hi) {
+    return x < lo ? lo : x > hi ? hi : x;
+  }
+
+  function smoothstep(edge0, edge1, x) {
+    const denom = edge1 - edge0;
+    const t = saturate((x - edge0) / (denom > 1e-8 || denom < -1e-8 ? denom : 1e-8));
+    return t * t * (3.0 - 2.0 * t);
+  }
+
+  // Deterministic Mulberry32 PRNG for catalog & volumetric jitter
+  function createRng(seed) {
+    let state = seed >>> 0;
+    return {
+      next() {
+        state = (state + 0x6d2b79f5) >>> 0;
+        let t = Math.imul(state ^ (state >>> 15), 1 | state);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296.0;
+      },
+      uniform(a, b) {
+        return a + (b - a) * this.next();
+      },
+      integers(lo, hi) {
+        return lo + Math.floor(this.next() * (hi - lo));
+      },
+      normal() {
+        const u1 = Math.max(1e-12, this.next());
+        const u2 = this.next();
+        return Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * PI * u2);
+      }
+    };
+  }
+
+  // ============================================================================
+  // 2. HIGH-SPEED PRECOMPUTED C2-CONTINUOUS MATERIAL NOISE ENGINE
+  // ============================================================================
+  // Exact 64-bit integer lattice hash matching Python's hash2d bit-for-bit
+  function hash2d(ix, iy, seed) {
+    const ixi = Math.floor(ix) | 0;
+    const iyi = Math.floor(iy) | 0;
+    const sdi = seed | 0;
+    const n0 = (Math.imul(ixi, 374761393) + Math.imul(iyi, 668265263) + Math.imul(sdi, 1442695041)) & 0x7fffffff;
+    const x = (n0 ^ (n0 >>> 13)) >>> 0;
+    // Multiply x by 1274126177 = (19441 << 16) + 40801 in exact 64-bit integer arithmetic
+    const xHi = x >>> 16;
+    const xLo = x & 0xffff;
+    const pLo = Math.imul(x, 1274126177);
+    const pShr16 =
+      (Math.imul(xHi, 19441) << 16) +
+      Math.imul(xHi, 40801) +
+      Math.imul(xLo, 19441) +
+      ((xLo * 40801) >>> 16);
+    const res = (pLo ^ pShr16) & 0x7fffffff;
+    return res / 2147483647.0;
+  }
+
+  const RAND_1024 = new Float64Array(1024 * 1024);
+  (function buildPeriodicLattice() {
+    for (let gy = 0; gy < 1024; gy++) {
+      const rowOff = gy << 10;
+      for (let gx = 0; gx < 1024; gx++) {
+        RAND_1024[rowOff + gx] = hash2d(gx, gy, SEED);
+      }
+    }
+  })();
+
+  // ============================================================================
+  // 3. ARCHITECTURAL ROOM & RESPONSIVE SCENE SPECIFICATION
+  // ============================================================================
+  let ROOM_X_LEFT = -3.10;
+  let ROOM_X_RIGHT = 3.20;
+  let ROOM_Y_FLOOR = 0.00;
+  let ROOM_Y_CEIL = 4.25;
+  let ROOM_Z_BACK = 7.60;
+  let BACK_CONCRETE_X_MAX = 1.08;
+  let WINDOW_TOP_Y = 3.88;
+
+  // Camera parameters: Multi-Format Tilt-Shift Architectural View Camera (strictly plumb verticals)
+  let CAM_POS = [-0.18, 1.38, -1.52];
+  let CAM_YAW_RAD = (2.35 * Math.PI) / 180.0;
+  let CAM_FOV_SCALE = 0.615;
+  let CAM_V_SHIFT = -0.045;
+
+  // Solar & Sky Lighting Vectors
+  const sunRawInit = [0.755, 0.295, 0.585];
+  const sunLenInit = Math.hypot(sunRawInit[0], sunRawInit[1], sunRawInit[2]);
+  let SUN_DIR = [sunRawInit[0] / sunLenInit, sunRawInit[1] / sunLenInit, sunRawInit[2] / sunLenInit];
+  let SUN_RADIANCE = [15.8, 11.4, 6.7];
+  let SKY_ZENITH_RAD = [0.85, 1.32, 2.25];
+
+  // Warm architectural brass reading sconce mounted on the left walnut library pier
+  let SCONCE_POS = [-2.68, 2.26, 3.55];
+  let SCONCE_RADIANCE = [5.60, 2.95, 0.95];
+  let SCONCE_BULB_EMIT = [16.0, 10.5, 4.2];
+
+  let RIGHT_TRANSOM_Y = [0.09, 1.08, 2.98, 3.88];
+  let BACK_MULLION_X = [1.14, 2.18, 3.14];
+
+  // Responsive architectural room & furniture choreography state
+  let LEFT_WALL_SHIFT_X = 0.0;
+  let CONCRETE_PANEL_W = 1.393;
+  let TABLE_SHIFT_X = 0.0;
+  let TABLE_SHIFT_Z = 0.0;
+  let TABLE_TOP_EX = 0.63;
+  let TABLE_PLINTH_EX = 0.48;
+  let TABLE_APRON_EX = 0.56;
+  let BOOK_CX = 0.04;
+  let BOOK_CZ = 1.44;
+  let CARAFE_CX = 0.52;
+  let CARAFE_CZ = 1.52;
+  let TUMBLER_CX = 0.70;
+  let TUMBLER_CZ = 1.42;
+  let RUG_MIN_X = -1.85;
+  let RUG_MAX_X = 1.55;
+  let BENCH_CX = -0.85;
+  let BENCH_EX = 1.75;
+  let BENCH_LEG_X0 = -2.25;
+  let BENCH_LEG_X1 = 0.55;
+  let BENCH_VESSEL_X = 0.22;
+  let MOUNTAIN_PARALLAX_PHI = 0.0;
+  let DUSK_FACTOR = 0.0;
+  let HIGH_SUN_FACTOR = 0.0;
+
+  // ============================================================================
+  // 4. LEFT WALL ARCHITECTURAL WALNUT LIBRARY & 380+ 3D HARDCOVER BOOKS
+  // ============================================================================
+  function buildWalnutLibraryCatalog(seed) {
+    const rng = createRng(seed + 77);
+    const wallBackX = ROOM_X_LEFT;
+    const caseFrontX = -2.72;
+    const shelfThick = 0.042;
+    const stileThick = 0.052;
+
+    // Include 2 upper double-height tower shelves so Portrait mode is filled to the ceiling
+    // while keeping the first 7 canonical tiers RNG-identical.
+    const shelfY = [0.08, 0.66, 1.22, 1.78, 2.34, 2.90, 3.46, 4.02, 4.58, 5.14];
+    const stileZ = [-0.80, 0.90, 2.55, 4.25, 5.92, 7.58];
+
+    const palette = [
+      [0.44, 0.37, 0.29], // Raw Belgian linen
+      [0.62, 0.56, 0.47], // Warm bone vellum
+      [0.19, 0.13, 0.10], // Deep espresso buckram
+      [0.46, 0.17, 0.11], // Venetian burnt sienna
+      [0.10, 0.14, 0.21], // Prussian indigo cloth
+      [0.26, 0.28, 0.22], // Muted sage olive
+      [0.54, 0.34, 0.16], // Warm ochre mustard
+      [0.13, 0.13, 0.14], // Charcoal graphite monograph
+      [0.52, 0.23, 0.17], // Terracotta clay
+      [0.33, 0.27, 0.24], // Umber taupe
+      [0.70, 0.66, 0.58], // Ivory cotton folio
+      [0.21, 0.24, 0.28]  // Slate blue-grey
+    ];
+
+    const zMin = -0.80;
+    const zMax = 7.58;
+    const nBins = 4190;
+    const nTiers = shelfY.length - 1;
+    const totalBins = nTiers * nBins;
+
+    const bookPresent = new Uint8Array(totalBins);
+    const bookHeight = new Float64Array(totalBins);
+    const bookFrontX = new Float64Array(totalBins);
+    bookFrontX.fill(-2.79);
+    const bookUSpine = new Float64Array(totalBins);
+    const bookColor = new Float64Array(totalBins * 3);
+    const bookBandY0 = new Float64Array(totalBins);
+    const bookBandY1 = new Float64Array(totalBins);
+    const bookBandCol = new Float64Array(totalBins * 3);
+    const bookRough = new Float64Array(totalBins);
+    bookRough.fill(0.55);
+
+    const vessels = [];
+
+    for (let tier = 0; tier < nTiers; tier++) {
+      const tierH = shelfY[tier + 1] - shelfY[tier] - shelfThick;
+      const tierOff = tier * nBins;
+
+      for (let bay = 0; bay < stileZ.length - 1; bay++) {
+        let zStart = stileZ[bay] + stileThick * 0.55;
+        let zEnd = stileZ[bay + 1] - stileThick * 0.55;
+
+        if (bay === 2 && tier === 3) {
+          vessels.push({
+            cx: -2.87,
+            cy: shelfY[tier] + shelfThick + 0.48 * 0.30,
+            cz: 3.08,
+            rx: 0.098,
+            ry: 0.48 * 0.30,
+            rz: 0.098,
+            color: [0.60, 0.54, 0.46],
+            rough: 0.32
+          });
+          zStart = 3.78;
+        } else if (
+          (bay === 1 && tier === 2) ||
+          (bay === 3 && tier === 4) ||
+          (bay === 2 && tier === 1) ||
+          (bay === 1 && tier === 7)
+        ) {
+          const vesselZ = zEnd - 0.32;
+          const vh = rng.uniform(0.22, 0.33);
+          const vr = rng.uniform(0.075, 0.105);
+          vessels.push({
+            cx: -2.86,
+            cy: shelfY[tier] + shelfThick + 0.48 * vh,
+            cz: vesselZ,
+            rx: vr,
+            ry: 0.48 * vh,
+            rz: vr,
+            color: [
+              rng.uniform(0.44, 0.68),
+              rng.uniform(0.38, 0.60),
+              rng.uniform(0.32, 0.52)
+            ],
+            rough: rng.uniform(0.25, 0.45)
+          });
+          zEnd -= 0.62;
+        }
+
+        let zCur = zStart;
+        while (zCur < zEnd - 0.035) {
+          if (rng.next() < 0.07 && (zEnd - zCur) > 0.28) {
+            zCur += rng.uniform(0.06, 0.14);
+            continue;
+          }
+          let thickness = rng.uniform(0.020, 0.056);
+          if (zCur + thickness > zEnd) thickness = zEnd - zCur;
+          if (thickness < 0.016) break;
+
+          const bHeight = rng.uniform(0.58 * tierH, 0.88 * tierH);
+          const frontX = rng.uniform(-2.815, -2.755);
+          const baseCol = palette[rng.integers(0, palette.length)];
+          const c0 = clamp(baseCol[0] * rng.uniform(0.82, 1.16), 0.04, 0.82);
+          const c1 = clamp(baseCol[1] * rng.uniform(0.82, 1.16), 0.04, 0.82);
+          const c2 = clamp(baseCol[2] * rng.uniform(0.82, 1.16), 0.04, 0.82);
+          const bRough = rng.uniform(0.42, 0.72);
+
+          const by0 = rng.uniform(0.58, 0.80) * bHeight;
+          const by1 = by0 + rng.uniform(0.018, 0.055);
+          const isGold = rng.next() < 0.55;
+          const bc0 = isGold ? 0.76 : 0.82;
+          const bc1 = isGold ? 0.61 : 0.78;
+          const bc2 = isGold ? 0.34 : 0.70;
+
+          const b0 = clamp(Math.floor(((zCur - zMin) / (zMax - zMin)) * nBins), 0, nBins - 1);
+          const b1 = clamp(Math.floor(((zCur + thickness - zMin) / (zMax - zMin)) * nBins), 0, nBins);
+
+          if (b1 > b0) {
+            const nb = b1 - b0;
+            for (let b = b0; b < b1; b++) {
+              const idx = tierOff + b;
+              const uSp = nb > 1 ? -1.0 + (2.0 * (b - b0)) / (nb - 1) : 0.0;
+              bookPresent[idx] = 1;
+              bookHeight[idx] = bHeight;
+              bookFrontX[idx] = frontX;
+              bookUSpine[idx] = uSp;
+              bookRough[idx] = bRough;
+              bookBandY0[idx] = by0;
+              bookBandY1[idx] = by1;
+              const cIdx = idx * 3;
+              bookColor[cIdx] = c0;
+              bookColor[cIdx + 1] = c1;
+              bookColor[cIdx + 2] = c2;
+              bookBandCol[cIdx] = bc0;
+              bookBandCol[cIdx + 1] = bc1;
+              bookBandCol[cIdx + 2] = bc2;
+            }
+          }
+          zCur += thickness + 0.0015;
+        }
+      }
+    }
+
+    return {
+      wallBackX,
+      caseFrontX,
+      shelfThick,
+      stileThick,
+      shelfY,
+      stileZ,
+      zMin,
+      zMax,
+      nBins,
+      nTiers,
+      bookPresent,
+      bookHeight,
+      bookFrontX,
+      bookUSpine,
+      bookColor,
+      bookBandY0,
+      bookBandY1,
+      bookBandCol,
+      bookRough,
+      vessels
+    };
+  }
+
+
+  let CHAIR_COS_YAW = Math.cos(0.56);
+  let CHAIR_SIN_YAW = Math.sin(0.56);
+  let CHAIR_YAW = -0.56;
+  let CHAIR_CY = Math.cos(CHAIR_YAW);
+  let CHAIR_SY = Math.sin(CHAIR_YAW);
+  let CHAIR_BASE = [-1.18, 0.0, 2.28];
+
+  function chairPt(lx, ly, lz) {
+    return [
+      CHAIR_BASE[0] + CHAIR_CY * lx + CHAIR_SY * lz,
+      CHAIR_BASE[1] + ly,
+      CHAIR_BASE[2] - CHAIR_SY * lx + CHAIR_CY * lz
+    ];
+  }
+
+  let CHAIR_SEAT_C = chairPt(0.0, 0.30, -0.02);
+  let CHAIR_BACK_C = chairPt(0.0, 0.56, 0.31);
+  let CHAIR_BOL_P0 = chairPt(-0.36, 0.72, 0.33);
+  let CHAIR_BOL_P1 = chairPt(0.36, 0.72, 0.33);
+
+  let CHAIR_STEEL_SEGS = [];
+
+  function rebuildResponsiveFurniture() {
+    CHAIR_CY = Math.cos(CHAIR_YAW);
+    CHAIR_SY = Math.sin(CHAIR_YAW);
+    CHAIR_COS_YAW = Math.cos(-CHAIR_YAW);
+    CHAIR_SIN_YAW = Math.sin(-CHAIR_YAW);
+    CHAIR_SEAT_C = chairPt(0.0, 0.30, -0.02);
+    CHAIR_BACK_C = chairPt(0.0, 0.56, 0.31);
+    CHAIR_BOL_P0 = chairPt(-0.36, 0.72, 0.33);
+    CHAIR_BOL_P1 = chairPt(0.36, 0.72, 0.33);
+
+    CHAIR_STEEL_SEGS = [];
+    for (const sideS of [-0.425, 0.425]) {
+      const rFront = chairPt(sideS, 0.018, -0.37);
+      const rBack = chairPt(sideS, 0.018, 0.38);
+      const fTop = chairPt(sideS, 0.42, -0.31);
+      const bTop = chairPt(sideS, 0.50, 0.31);
+      CHAIR_STEEL_SEGS.push([rFront, rBack], [rFront, fTop], [rBack, bTop], [fTop, bTop]);
+    }
+  }
+  rebuildResponsiveFurniture();
+
+  let SUN_HORIZ_LEN = Math.hypot(SUN_DIR[0], SUN_DIR[2]);
+  let SUN_HORIZ_X = -SUN_DIR[0] / SUN_HORIZ_LEN;
+  let SUN_HORIZ_Z = -SUN_DIR[2] / SUN_HORIZ_LEN;
+  let SUN_PERP_X = -SUN_HORIZ_Z;
+  let SUN_PERP_Z = SUN_HORIZ_X;
+
+  // ============================================================================
+  // 5. RESPONSIVE ARCHITECTURAL STATE & MULTI-PASS RENDERING PIPELINE
+  // ============================================================================
+  const MASTER_CATALOG = buildWalnutLibraryCatalog(SEED);
+
+  function computeResponsiveSceneState(viewW, viewH) {
+    WIDTH = Math.max(320, Math.round(viewW));
+    HEIGHT = Math.max(240, Math.round(viewH));
+    const aspect = WIDTH / HEIGHT;
+
+    // 1. Aspect Ratio -> 3D Room Bounds, Shrinking/Expanding Rear Back Wall, & Furniture Choreography
+    // At canonical 4:3 (aspect = 1.3333), wideFactor = 0 and narrowFactor = 0.
+    const wideFactor = smoothstep(1.35, 2.32, aspect);
+    const narrowFactor = 1.0 - smoothstep(0.56, 1.35, aspect);
+
+    LEFT_WALL_SHIFT_X = -0.38 * wideFactor + 0.84 * narrowFactor * narrowFactor;
+    ROOM_X_LEFT = -3.10 + LEFT_WALL_SHIFT_X;
+    ROOM_X_RIGHT = 3.20 + 1.05 * wideFactor - 1.12 * narrowFactor;
+    ROOM_Y_FLOOR = 0.00;
+    ROOM_Y_CEIL = 4.25 + 0.65 * narrowFactor;
+    ROOM_Z_BACK = 7.60;
+    // Shrink the solid board-formed concrete rear wall in narrow viewports (3.80m -> 2.02m exposed width)
+    BACK_CONCRETE_X_MAX = 1.08 + 0.24 * wideFactor - 0.86 * narrowFactor;
+    CONCRETE_PANEL_W = 1.393 - 0.193 * narrowFactor;
+    WINDOW_TOP_Y = 3.88 + 0.60 * narrowFactor;
+
+    if (WINDOW_TOP_Y > 4.20) {
+      RIGHT_TRANSOM_Y = [0.09, 1.08, 2.98, 3.88, WINDOW_TOP_Y];
+    } else {
+      RIGHT_TRANSOM_Y = [0.09, 1.08, 2.98, 3.88];
+    }
+
+    const xWinStart = BACK_CONCRETE_X_MAX + 0.06;
+    const xWinEnd = ROOM_X_RIGHT - 0.06;
+    if (wideFactor > 0.35) {
+      const span = xWinEnd - xWinStart;
+      BACK_MULLION_X = [xWinStart, xWinStart + span / 3.0, xWinStart + (2.0 * span) / 3.0, xWinEnd];
+    } else {
+      const xWinMid = 0.5 * (xWinStart + xWinEnd) + 0.04 * (1.0 - narrowFactor);
+      BACK_MULLION_X = [xWinStart, xWinMid, xWinEnd];
+    }
+
+    // Rear concrete credenza bench dynamically resizes and centers on the shrinking/expanding rear concrete wall
+    const caseFrontActive = -2.72 + LEFT_WALL_SHIFT_X;
+    const benchLeftX = caseFrontActive + 0.12;
+    const benchRightX = BACK_CONCRETE_X_MAX - 0.18;
+    BENCH_CX = 0.5 * (benchLeftX + benchRightX);
+    BENCH_EX = Math.max(0.50, 0.5 * (benchRightX - benchLeftX));
+    const legInset = Math.min(0.35, 0.22 * BENCH_EX);
+    BENCH_LEG_X0 = BENCH_CX - (BENCH_EX - legInset);
+    BENCH_LEG_X1 = BENCH_CX + (BENCH_EX - legInset);
+    BENCH_VESSEL_X = BENCH_CX + (1.07 / 1.75) * BENCH_EX;
+
+    // Brass reading sconce mounted on middle left walnut bookcase stile (Z = 2.55)
+    SCONCE_POS[0] = -2.68 + LEFT_WALL_SHIFT_X;
+    SCONCE_POS[1] = 2.26;
+    SCONCE_POS[2] = 2.55;
+
+    // Chair glides back into deeper room depth while preserving >= 0.30m world clearance from table and shelves
+    CHAIR_BASE[0] = -1.18 - 0.24 * wideFactor + 0.30 * narrowFactor * narrowFactor;
+    CHAIR_BASE[1] = 0.0;
+    CHAIR_BASE[2] = 2.28 - 0.05 * wideFactor + 0.90 * narrowFactor;
+    CHAIR_YAW = -0.56 - 0.06 * wideFactor + 0.08 * narrowFactor;
+
+    TABLE_SHIFT_X = 0.32 * wideFactor - 0.14 * narrowFactor * narrowFactor;
+    TABLE_SHIFT_Z = -0.05 * wideFactor - 0.26 * narrowFactor;
+    TABLE_TOP_EX = 0.72 + 0.04 * wideFactor - 0.14 * narrowFactor;
+    TABLE_PLINTH_EX = 0.56 + 0.03 * wideFactor - 0.11 * narrowFactor;
+    TABLE_APRON_EX = 0.64 + 0.03 * wideFactor - 0.12 * narrowFactor;
+
+    BOOK_CX = 0.04 + TABLE_SHIFT_X + 0.03 * narrowFactor;
+    BOOK_CZ = 1.44 + TABLE_SHIFT_Z;
+    CARAFE_CX = 0.52 + TABLE_SHIFT_X - 0.04 * narrowFactor;
+    CARAFE_CZ = 1.52 + TABLE_SHIFT_Z;
+    TUMBLER_CX = 0.70 + TABLE_SHIFT_X - 0.06 * narrowFactor;
+    TUMBLER_CZ = 1.42 + TABLE_SHIFT_Z;
+
+    RUG_MIN_X = -1.85 - 0.32 * wideFactor + 0.52 * narrowFactor * narrowFactor;
+    RUG_MAX_X = 1.55 + 0.38 * wideFactor - 0.52 * narrowFactor;
+    rebuildResponsiveFurniture();
+
+    // Multi-format tilt-shift camera position, yaw, vertical rise & aspect-matched horizontal FOV
+    CAM_POS[0] = -0.18 + 0.18 * wideFactor + 0.04 * narrowFactor;
+    CAM_POS[1] = 1.38 - 0.03 * narrowFactor;
+    CAM_POS[2] = -1.52 - 0.22 * wideFactor - 0.18 * narrowFactor;
+    CAM_YAW_RAD = ((2.35 + 3.8 * wideFactor - 1.15 * narrowFactor) * PI) / 180.0;
+    CAM_V_SHIFT = -0.045 + 0.015 * wideFactor + 0.085 * narrowFactor;
+
+    if (aspect > 4.0 / 3.0) {
+      const targetHalfFovY = 0.46125 - 0.022 * wideFactor;
+      CAM_FOV_SCALE = targetHalfFovY * aspect;
+    } else {
+      CAM_FOV_SCALE = 0.615 - 0.250 * narrowFactor;
+    }
+
+    // 2. Viewport Width (W) -> Solar Azimuth Angle & Exterior Mountain Parallax
+    const wNorm = clamp((viewW - 1600.0) / 600.0, -1.35, 1.35);
+    const baseAzimuthRad = Math.atan2(0.585, 0.755); // Canonical solar azimuth (37.77 deg)
+    const azScale = 1.0 - 0.55 * narrowFactor;
+    const azimuthOffsetRad = (13.5 * wNorm * azScale * PI) / 180.0;
+    const sunAzimuthRad = baseAzimuthRad + azimuthOffsetRad;
+    MOUNTAIN_PARALLAX_PHI = wNorm * 0.16;
+
+    // 3. Viewport Height (H) -> Solar Elevation, Alpenglow Sky & 2700K Brass Sconce Radiosity
+    DUSK_FACTOR = 1.0 - smoothstep(600.0, 1020.0, viewH);
+    HIGH_SUN_FACTOR = smoothstep(1240.0, 1720.0, viewH);
+
+    const baseElevRad = Math.asin(0.295 / sunLenInit); // Canonical 17.15 deg
+    const sunElevRad = clamp(
+      baseElevRad - (7.6 * DUSK_FACTOR * PI) / 180.0 + (5.2 * HIGH_SUN_FACTOR * PI) / 180.0,
+      (8.5 * PI) / 180.0,
+      (28.0 * PI) / 180.0
+    );
+
+    const cosElev = Math.cos(sunElevRad);
+    SUN_DIR[0] = cosElev * Math.cos(sunAzimuthRad);
+    SUN_DIR[1] = Math.sin(sunElevRad);
+    SUN_DIR[2] = cosElev * Math.sin(sunAzimuthRad);
+    const sLen = Math.hypot(SUN_DIR[0], SUN_DIR[1], SUN_DIR[2]) || 1.0;
+    SUN_DIR[0] /= sLen;
+    SUN_DIR[1] /= sLen;
+    SUN_DIR[2] /= sLen;
+
+    SUN_HORIZ_LEN = Math.hypot(SUN_DIR[0], SUN_DIR[2]) || 1.0;
+    SUN_HORIZ_X = -SUN_DIR[0] / SUN_HORIZ_LEN;
+    SUN_HORIZ_Z = -SUN_DIR[2] / SUN_HORIZ_LEN;
+    SUN_PERP_X = -SUN_HORIZ_Z;
+    SUN_PERP_Z = SUN_HORIZ_X;
+
+    // Interpolate solar radiance, sky dome & warm brass reading sconce
+    SUN_RADIANCE[0] = 15.8 + 2.8 * DUSK_FACTOR - 0.5 * HIGH_SUN_FACTOR;
+    SUN_RADIANCE[1] = 11.4 - 2.4 * DUSK_FACTOR + 0.6 * HIGH_SUN_FACTOR;
+    SUN_RADIANCE[2] = 6.7 - 3.2 * DUSK_FACTOR + 1.0 * HIGH_SUN_FACTOR;
+
+    SKY_ZENITH_RAD[0] = 0.85 - 0.18 * DUSK_FACTOR + 0.05 * HIGH_SUN_FACTOR;
+    SKY_ZENITH_RAD[1] = 1.32 - 0.34 * DUSK_FACTOR + 0.10 * HIGH_SUN_FACTOR;
+    SKY_ZENITH_RAD[2] = 2.25 - 0.45 * DUSK_FACTOR + 0.18 * HIGH_SUN_FACTOR;
+
+    const sconceBoost = 1.0 + 1.55 * DUSK_FACTOR + 0.32 * narrowFactor;
+    SCONCE_RADIANCE[0] = 5.60 * sconceBoost;
+    SCONCE_RADIANCE[1] = 2.95 * sconceBoost;
+    SCONCE_RADIANCE[2] = 0.95 * sconceBoost;
+
+    const bulbBoost = 1.0 + 0.65 * DUSK_FACTOR + 0.18 * narrowFactor;
+    SCONCE_BULB_EMIT[0] = 16.0 * bulbBoost;
+    SCONCE_BULB_EMIT[1] = 10.5 * bulbBoost;
+    SCONCE_BULB_EMIT[2] = 4.2 * bulbBoost;
+
+    // Update subtle architectural HUD when visible in interactive browser
+    const hudEl = document.getElementById("arch-hud");
+    if (hudEl) {
+      const isHeadless = Boolean(navigator.webdriver) || window.location.search.includes("hud=0") || window.location.search.includes("sync=1");
+      hudEl.hidden = isHeadless;
+      if (!isHeadless) {
+        const computedStyle = window.getComputedStyle(document.documentElement);
+        const archMode = (computedStyle.getPropertyValue("--arch-mode") || "canonical").replace(/["']/g, "").trim();
+        const lensMm = (computedStyle.getPropertyValue("--lens-mm") || "35").replace(/["']/g, "").trim();
+        const azDeg = Math.round((sunAzimuthRad * 180.0) / PI);
+        const elDeg = ((sunElevRad * 180.0) / PI).toFixed(1);
+        hudEl.textContent = `${archMode}  |  ${lensMm}mm tilt-shift  |  sun az ${azDeg}° el ${elDeg}°  |  ${Math.round(viewW)}×${Math.round(viewH)}`;
+      }
+    }
+  }
+
+  // ============================================================================
+  // 6. ZERO-ALLOCATION WEBGL2 + GLSL ES 3.00 GPU RAY-TRACING & RADIOSITY ENGINE
+  // ============================================================================
+  const GL_MAX_W = 2560;
+  const GL_MAX_H = 1280;
+
+  const VS_FULLSCREEN = `#version 300 es
+  precision highp float;
+  void main() {
+    float x = float((gl_VertexID & 1) << 2) - 1.0;
+    float y = float((gl_VertexID & 2) << 1) - 1.0;
+    gl_Position = vec4(x, y, 0.0, 1.0);
+  }
+  `;
+
+  const GLSL_SCENE_BASE = `#version 300 es
+  precision highp float;
+  precision highp int;
+  precision highp sampler2D;
+
+  const float PI = 3.14159265358979323846;
+  const float INV_PI = 0.3183098861837907;
+  const float FBM_CS = 0.8678191796776499;
+  const float FBM_SN = 0.49688013784373675;
+  const float BOOK_COS_019 = 0.9820042351172703;
+  const float BOOK_SIN_019 = 0.18885889497650057;
+
+  const int MAT_FLOOR_OAK = 1;
+  const int MAT_FLOOR_TRAVERTINE = 2;
+  const int MAT_BACK_CONCRETE = 3;
+  const int MAT_CEILING_CONCRETE = 4;
+  const int MAT_WALNUT_CASEWORK = 5;
+  const int MAT_BOOK_SPINE = 6;
+  const int MAT_BOOK_PAGES = 7;
+  const int MAT_CERAMIC_VESSEL = 8;
+  const int MAT_BRASS_SCONCE = 9;
+  const int MAT_SCONCE_BULB = 10;
+  const int MAT_STEEL_MULLION = 11;
+  const int MAT_WINDOW_GLASS = 12;
+  const int MAT_COFFEE_TABLE_TOP = 13;
+  const int MAT_COFFEE_TABLE_BASE = 14;
+  const int MAT_OPEN_BOOK_PAGE = 15;
+  const int MAT_OPEN_BOOK_COVER = 16;
+  const int MAT_LEATHER_CHAIR = 17;
+  const int MAT_CHAIR_STEEL = 18;
+  const int MAT_GLASS_CARAFE = 19;
+  const int MAT_WATER_TUMBLER = 20;
+  const int MAT_EUCALYPTUS_LEAF = 21;
+  const int MAT_EUCALYPTUS_STEM = 22;
+  const int MAT_CONCRETE_BENCH = 23;
+  const int MAT_BRASS_INLAY = 24;
+  const int MAT_ART_CANVAS = 25;
+  const int MAT_ESPRESSO_LIQUID = 26;
+  const int MAT_TERRACOTTA_BOOK = 27;
+  const int MAT_SILK_RIBBON = 28;
+  const int MAT_BOUCLE_RUG = 29;
+  const int MAT_RUG_LINEN_BORDER = 30;
+
+  uniform sampler2D u_randTex;
+  uniform sampler2D u_bookMetaTex;
+  uniform sampler2D u_bookColTex;
+  uniform sampler2D u_bookBandTex;
+  uniform sampler2D u_bookBand2Tex;
+
+  uniform vec2 u_res;
+  uniform float u_resScale;
+  uniform vec3 u_camPos;
+  uniform float u_camYawRad;
+  uniform float u_camFovScale;
+  uniform float u_camVShift;
+
+  uniform float u_roomXLeft;
+  uniform float u_roomXRight;
+  uniform float u_roomYFloor;
+  uniform float u_roomYCeil;
+  uniform float u_roomZBack;
+  uniform float u_backConcreteXMax;
+  uniform float u_windowTopY;
+  uniform float u_leftWallShiftX;
+  uniform float u_concretePanelW;
+
+  uniform vec3 u_sunDir;
+  uniform vec3 u_sunRadiance;
+  uniform vec3 u_skyZenithRad;
+  uniform vec4 u_sunHorizPerp;
+
+  uniform vec3 u_sconcePos;
+  uniform vec3 u_sconceRadiance;
+  uniform vec3 u_sconceBulbEmit;
+
+  uniform float u_mountainParallaxPhi;
+  uniform float u_duskFactor;
+  uniform float u_highSunFactor;
+
+  uniform vec4 u_tableParams; // shiftX, shiftZ, topEx, plinthEx
+  uniform float u_tableApronEx;
+  uniform vec4 u_bookCarafePos; // bookCx, bookCz, carafeCx, carafeCz
+  uniform vec2 u_tumblerPos;
+  uniform vec2 u_rugX;
+  uniform vec4 u_benchParams; // cx, ex, legX0, legX1
+  uniform float u_benchVesselX;
+
+  uniform vec3 u_chairBase;
+  uniform vec3 u_chairSeatC;
+  uniform vec3 u_chairBackC;
+  uniform vec3 u_chairBolP0;
+  uniform vec3 u_chairBolP1;
+  uniform vec3 u_chairRot; // yaw, cos(-yaw), sin(-yaw)
+  uniform vec3 u_chairSteelA[8];
+  uniform vec3 u_chairSteelB[8];
+
+  uniform vec4 u_rightTransomY;
+  uniform float u_rightTransomY4;
+  uniform int u_numRightTransoms;
+  uniform vec4 u_backMullionX;
+  uniform int u_numBackMullions;
+
+  uniform vec4 u_vesselPosR0[5];
+  uniform vec3 u_vesselRyRzRough[5];
+  uniform vec3 u_vesselCol[5];
+
+  float saturate(float x) {
+    return clamp(x, 0.0, 1.0);
+  }
+
+  float smoothstepCpu(float edge0, float edge1, float x) {
+    float denom = edge1 - edge0;
+    float safeDenom = (denom > 1e-8 || denom < -1e-8) ? denom : 1e-8;
+    float t = saturate((x - edge0) / safeDenom);
+    return t * t * (3.0 - 2.0 * t);
+  }
+
+  float schlickFresnelScalar(float cosTheta, float f0) {
+    float c = saturate(1.0 - saturate(cosTheta));
+    float c2 = c * c;
+    float c5 = c2 * c2 * c;
+    return f0 + (1.0 - f0) * c5;
+  }
+
+  float dielectricFresnelExact(float cosI, float etaI, float etaT) {
+    float ci = saturate(abs(cosI));
+    float ratio = etaI / etaT;
+    float sin2T = ratio * ratio * max(0.0, 1.0 - ci * ci);
+    if (sin2T >= 1.0) return 1.0;
+    float ct = sqrt(max(0.0, 1.0 - sin2T));
+    float rs = (etaI * ci - etaT * ct) / max(etaI * ci + etaT * ct, 1e-8);
+    float rp = (etaT * ci - etaI * ct) / max(etaT * ci + etaI * ct, 1e-8);
+    return 0.5 * (rs * rs + rp * rp);
+  }
+
+  float ggxIsotropicD(float nDotH, float roughness) {
+    float alpha = max(roughness * roughness, 0.0015);
+    float a2 = alpha * alpha;
+    float c = saturate(nDotH);
+    float c2 = c * c;
+    float denom = c2 * (a2 - 1.0) + 1.0;
+    return a2 / max(PI * denom * denom, 1e-10);
+  }
+
+  float smithGgxG(float nDotV, float nDotL, float roughness) {
+    float alpha = max(roughness * roughness, 0.0015);
+    float a2 = alpha * alpha;
+    float nv = clamp(nDotV, 1e-4, 1.0);
+    float nl = clamp(nDotL, 1e-4, 1.0);
+    float gv = nl * sqrt(nv * nv * (1.0 - a2) + a2);
+    float gl2 = nv * sqrt(nl * nl * (1.0 - a2) + a2);
+    return 0.5 / max(gv + gl2, 1e-8);
+  }
+
+  float hash2d(int ixi, int iyi, int sdi) {
+    uint n0 = (uint(ixi) * 374761393u + uint(iyi) * 668265263u + uint(sdi) * 1442695041u) & 0x7fffffffu;
+    uint x = (n0 ^ (n0 >> 13u));
+    uint xHi = x >> 16u;
+    uint xLo = x & 0xffffu;
+    uint pLo = x * 1274126177u;
+    uint pShr16 = ((xHi * 19441u) << 16u) + (xHi * 40801u) + (xLo * 19441u) + ((xLo * 40801u) >> 16u);
+    uint res = (pLo ^ pShr16) & 0x7fffffffu;
+    return float(res) / 2147483647.0;
+  }
+
+  float valueNoise2d(float x, float y, int seed) {
+    int ox = (seed * 173 + 37) & 1023;
+    int oy = (seed * 293 + 91) & 1023;
+    float xf = floor(x);
+    float yf = floor(y);
+    float fx = x - xf;
+    float fy = y - yf;
+    float ux = fx * fx * (3.0 - 2.0 * fx);
+    float uy = fy * fy * (3.0 - 2.0 * fy);
+
+    int ix0 = (int(xf) + ox) & 1023;
+    int iy0 = (int(yf) + oy) & 1023;
+    int ix1 = (ix0 + 1) & 1023;
+    int iy1 = (iy0 + 1) & 1023;
+
+    float c00 = texelFetch(u_randTex, ivec2(ix0, iy0), 0).r;
+    float c10 = texelFetch(u_randTex, ivec2(ix1, iy0), 0).r;
+    float c01 = texelFetch(u_randTex, ivec2(ix0, iy1), 0).r;
+    float c11 = texelFetch(u_randTex, ivec2(ix1, iy1), 0).r;
+
+    float v0 = c00 + ux * (c10 - c00);
+    float v1 = c01 + ux * (c11 - c01);
+    return v0 + uy * (v1 - v0);
+  }
+
+  float fbm2d(float x, float y, int octaves, int seed) {
+    float total = 0.0;
+    float amp = 1.0;
+    float freq = 1.0;
+    float norm = 0.0;
+    float xr = x;
+    float yr = y;
+    for (int i = 0; i < 4; i++) {
+      if (i >= octaves) break;
+      total += amp * valueNoise2d(xr * freq, yr * freq, seed + i * 31);
+      norm += amp;
+      amp *= 0.5;
+      freq *= 2.03;
+      float nxr = FBM_CS * xr - FBM_SN * yr;
+      float nyr = FBM_SN * xr + FBM_CS * yr;
+      xr = nxr;
+      yr = nyr;
+    }
+    return total / max(norm, 1e-8);
+  }
+
+  struct HitOut {
+    float t;
+    bool hit;
+    vec3 n;
+    vec3 l;
+  };
+
+  HitOut intersectRoundedBoxScalar(vec3 ro, vec3 rd, vec3 c, vec3 e, float bevelR) {
+    HitOut h;
+    h.t = 1e9;
+    h.hit = false;
+    h.n = vec3(0.0, 1.0, 0.0);
+    h.l = vec3(0.0);
+
+    vec3 bmin = c - e;
+    vec3 bmax = c + e;
+    vec3 safeD = vec3(
+      abs(rd.x) < 1e-12 ? (rd.x < 0.0 ? -1e-12 : 1e-12) : rd.x,
+      abs(rd.y) < 1e-12 ? (rd.y < 0.0 ? -1e-12 : 1e-12) : rd.y,
+      abs(rd.z) < 1e-12 ? (rd.z < 0.0 ? -1e-12 : 1e-12) : rd.z
+    );
+    vec3 invD = 1.0 / safeD;
+    vec3 t0 = (bmin - ro) * invD;
+    vec3 t1 = (bmax - ro) * invD;
+    vec3 tmin = min(t0, t1);
+    vec3 tmax = max(t0, t1);
+    float tNear = max(max(tmin.x, tmin.y), tmin.z);
+    float tFar = min(min(tmax.x, tmax.y), tmax.z);
+    if (tFar < max(tNear, 1e-4) || tNear <= 1e-4) return h;
+
+    vec3 fn = vec3(0.0);
+    if (abs(tNear - tmin.x) < 1e-7) {
+      fn.x = rd.x >= 0.0 ? -1.0 : 1.0;
+    } else if (abs(tNear - tmin.y) < 1e-7) {
+      fn.y = rd.y >= 0.0 ? -1.0 : 1.0;
+    } else {
+      fn.z = rd.z >= 0.0 ? -1.0 : 1.0;
+    }
+
+    vec3 p = ro + tNear * rd - c;
+    vec3 inE = max(e - bevelR, vec3(1e-4));
+    vec3 q = max(abs(p) - inE, vec3(0.0)) * vec3(
+      p.x >= 0.0 ? 1.0 : -1.0,
+      p.y >= 0.0 ? 1.0 : -1.0,
+      p.z >= 0.0 ? 1.0 : -1.0
+    );
+    float outNorm = length(q);
+    vec3 sn = outNorm > 1e-5 ? (q / outNorm) : fn;
+    vec3 n = fn + 0.85 * sn;
+    float nLen = length(n);
+    h.t = tNear;
+    h.hit = true;
+    h.n = n / (nLen > 0.0 ? nLen : 1.0);
+    h.l = p;
+    return h;
+  }
+
+  HitOut intersectObbYScalar(vec3 ro, vec3 rd, vec3 c, vec3 e, float yawRad, float bevelR, float tiltXRad) {
+    vec3 rel = ro - c;
+    float cyN = cos(-yawRad), syN = sin(-yawRad);
+    vec3 r = vec3(cyN * rel.x + syN * rel.z, rel.y, -syN * rel.x + cyN * rel.z);
+    vec3 d = vec3(cyN * rd.x + syN * rd.z, rd.y, -syN * rd.x + cyN * rd.z);
+
+    if (abs(tiltXRad) > 1e-6) {
+      float cxN = cos(-tiltXRad), sxN = sin(-tiltXRad);
+      r = vec3(r.x, cxN * r.y - sxN * r.z, sxN * r.y + cxN * d.z * 0.0 + cxN * r.z);
+      r = vec3(cyN * rel.x + syN * rel.z, cxN * rel.y - sxN * (-syN * rel.x + cyN * rel.z), sxN * rel.y + cxN * (-syN * rel.x + cyN * rel.z));
+      d = vec3(cyN * rd.x + syN * rd.z, cxN * rd.y - sxN * (-syN * rd.x + cyN * rd.z), sxN * rd.y + cxN * (-syN * rd.x + cyN * rd.z));
+    }
+
+    HitOut res = intersectRoundedBoxScalar(r, d, vec3(0.0), e, bevelR);
+    if (!res.hit) return res;
+
+    vec3 n = res.n;
+    if (abs(tiltXRad) > 1e-6) {
+      float cxP = cos(tiltXRad), sxP = sin(tiltXRad);
+      n = vec3(n.x, cxP * n.y - sxP * n.z, sxP * n.y + cxP * n.z);
+    }
+    float cyW = cos(yawRad), syW = sin(yawRad);
+    vec3 w = vec3(cyW * n.x + syW * n.z, n.y, -syW * n.x + cyW * n.z);
+    float nLen = length(w);
+    res.n = w / (nLen > 0.0 ? nLen : 1.0);
+    return res;
+  }
+
+  HitOut intersectCylinderSegmentScalar(vec3 ro, vec3 rd, vec3 pa, vec3 pb, float radius, bool capped) {
+    HitOut h;
+    h.t = 1e9;
+    h.hit = false;
+    h.n = vec3(0.0, 1.0, 0.0);
+    h.l = vec3(0.0);
+
+    vec3 ba = pb - pa;
+    float baLen = max(length(ba), 1e-6);
+    vec3 a = ba / baLen;
+    vec3 oc = ro - pa;
+    float rdDotA = dot(rd, a);
+    float ocDotA = dot(oc, a);
+    vec3 dp = rd - rdDotA * a;
+    vec3 op = oc - ocDotA * a;
+
+    float aCoef = dot(dp, dp);
+    float bCoef = dot(op, dp);
+    float cCoef = dot(op, op) - radius * radius;
+    float disc = bCoef * bCoef - aCoef * cCoef;
+
+    float tBest = 1e9;
+    bool hitAny = false;
+    vec3 nb = vec3(0.0, 1.0, 0.0);
+
+    if (disc >= 0.0 && aCoef > 1e-10) {
+      float sqrtDisc = sqrt(disc);
+      float tSide = (-bCoef - sqrtDisc) / aCoef;
+      float ySide = ocDotA + tSide * rdDotA;
+      if (tSide > 1e-4 && ySide >= 0.0 && ySide <= baLen) {
+        vec3 ph = oc + tSide * rd - ySide * a;
+        float nLen = length(ph);
+        tBest = tSide;
+        hitAny = true;
+        nb = ph / (nLen > 0.0 ? nLen : 1.0);
+      }
+    }
+
+    if (capped) {
+      float safeRdA = abs(rdDotA) < 1e-10 ? (rdDotA < 0.0 ? -1e-10 : 1e-10) : rdDotA;
+      float invRdA = 1.0 / safeRdA;
+      float tCap0 = -ocDotA * invRdA;
+      if (tCap0 > 1e-4 && tCap0 < tBest) {
+        vec3 c0 = op + tCap0 * dp;
+        if (dot(c0, c0) <= radius * radius) {
+          tBest = tCap0;
+          hitAny = true;
+          nb = -a;
+        }
+      }
+      float tCap1 = (baLen - ocDotA) * invRdA;
+      if (tCap1 > 1e-4 && tCap1 < tBest) {
+        vec3 c1 = op + tCap1 * dp;
+        if (dot(c1, c1) <= radius * radius) {
+          tBest = tCap1;
+          hitAny = true;
+          nb = a;
+        }
+      }
+    }
+
+    h.t = tBest;
+    h.hit = hitAny;
+    h.n = nb;
+    return h;
+  }
+
+  HitOut intersectEllipsoidScalar(vec3 ro, vec3 rd, vec3 c, vec3 rRad, float yawRad) {
+    HitOut h;
+    h.t = 1e9;
+    h.hit = false;
+    h.n = vec3(0.0, 1.0, 0.0);
+    h.l = vec3(0.0);
+
+    vec3 rel = ro - c;
+    vec3 r = rel;
+    vec3 d = rd;
+    float cyW = 1.0, syW = 0.0;
+    if (yawRad != 0.0) {
+      float cyN = cos(-yawRad), syN = sin(-yawRad);
+      r = vec3(cyN * rel.x + syN * rel.z, rel.y, -syN * rel.x + cyN * rel.z);
+      d = vec3(cyN * rd.x + syN * rd.z, rd.y, -syN * rd.x + cyN * rd.z);
+      cyW = cos(yawRad);
+      syW = sin(yawRad);
+    }
+
+    vec3 invR = 1.0 / rRad;
+    vec3 o = r * invR;
+    vec3 v = d * invR;
+    float a = dot(v, v);
+    float b = dot(o, v);
+    float cc = dot(o, o) - 1.0;
+    float disc = b * b - a * cc;
+    if (disc < 0.0) return h;
+
+    float t = (-b - sqrt(disc)) / max(a, 1e-10);
+    if (t <= 1e-4) return h;
+
+    vec3 p = r + t * d;
+    vec3 nL = p * invR * invR;
+    vec3 w = vec3(cyW * nL.x + syW * nL.z, nL.y, -syW * nL.x + cyW * nL.z);
+    float nLen = length(w);
+    h.t = t;
+    h.hit = true;
+    h.n = w / (nLen > 0.0 ? nLen : 1.0);
+    return h;
+  }
+
+  bool rayHitsSphereScalar(vec3 ro, vec3 rd, vec3 c, float radius, float tMax) {
+    vec3 oc = c - ro;
+    float tProj = dot(oc, rd);
+    if (tProj + radius <= 1e-4 || tProj - radius >= tMax) return false;
+    float d2 = dot(oc, oc) - tProj * tProj;
+    return d2 <= radius * radius;
+  }
+
+  vec3 skyRadianceForDir(vec3 dDir) {
+    float elev = saturate(dDir.y);
+    float tSky = smoothstepCpu(0.004, 0.25, elev);
+    float d = u_duskFactor;
+    float h = u_highSunFactor;
+
+    vec3 horiz = vec3(
+      1.18 + 0.28 * d - 0.06 * h,
+      1.12 - 0.16 * d + 0.04 * h,
+      1.04 - 0.34 * d + 0.10 * h
+    );
+    vec3 zen = vec3(
+      0.22 - 0.06 * d - 0.03 * h,
+      0.52 - 0.15 * d + 0.05 * h,
+      1.22 - 0.24 * d + 0.12 * h
+    );
+    vec3 col = mix(horiz, zen, tSky);
+
+    float sunCos = clamp(dot(dDir, u_sunDir), -1.0, 1.0);
+    float posCos = max(0.0, sunCos);
+    float horizonGlow = exp(-elev * (14.0 - 3.5 * d)) * (0.30 + 0.70 * posCos * posCos) * (1.0 + 0.35 * d);
+    col += horizonGlow * vec3(1.05 + 0.25 * d, 0.72 - 0.10 * d, 0.36 - 0.12 * d);
+
+    float mieLobe = pow(posCos, 22.0) * 0.85 + pow(posCos, 140.0) * 7.5;
+    float sunDisc = smoothstepCpu(0.9992, 0.99985, sunCos) * 36.0;
+    float mTot = mieLobe + sunDisc;
+    col += mTot * vec3(1.15 + 0.18 * d, 0.80 - 0.10 * d, 0.42 - 0.14 * d);
+
+    if (elev > 0.04) {
+      float phi = atan(dDir.x, max(dDir.z, 1e-4)) + u_mountainParallaxPhi * 0.35;
+      float uCloud = phi * 3.8 + elev * 3.2;
+      float vCloud = elev * 18.0 - phi * 2.4;
+      float cWarp = fbm2d(uCloud * 0.85, vCloud * 0.85, 2, 771);
+      float cirrus1 = fbm2d(uCloud + cWarp * 1.35, vCloud * 1.4, 3, 787);
+      float cirrus2 = valueNoise2d(uCloud * 5.5 - cWarp * 2.2, vCloud * 4.5, 793);
+      float fiber = 0.65 * cirrus1 + 0.35 * cirrus2;
+      float altBand = smoothstepCpu(0.05, 0.13, elev) * (1.0 - smoothstepCpu(0.32, 0.52, elev));
+      float cAlpha = smoothstepCpu(0.53, 0.74, fiber) * altBand * 0.82;
+      float sunWarm = 0.40 + 0.60 * pow(posCos, 2.2);
+      vec3 cCol = vec3(
+        (1.45 + 0.22 * d) * sunWarm + 0.55 * (1.0 - 0.25 * d),
+        (1.28 - 0.14 * d) * sunWarm + 0.58 * (1.0 - 0.20 * d),
+        (1.08 - 0.32 * d) * sunWarm + 0.66 * (1.0 - 0.15 * d)
+      );
+      col = mix(col, cCol, cAlpha);
+    }
+    return col;
+  }
+
+  float ridgedMountain1D(float u, int octaves, int seed) {
+    float sum = 0.0;
+    float amp = 0.54;
+    float freq = 1.0;
+    float weight = 1.0;
+    float norm = 0.0;
+    for (int i = 0; i < 4; i++) {
+      if (i >= octaves) break;
+      float fi = float(i);
+      float n1 = valueNoise2d(u * freq, fi * 19.3 + 7.1, seed + i * 43);
+      float n2 = valueNoise2d(u * freq * 1.37 + 5.2, fi * 11.7 + 3.4, seed + i * 71);
+      float f1 = 1.0 - abs(2.0 * n1 - 1.0);
+      float f2 = 1.0 - abs(2.0 * n2 - 1.0);
+      float ridge = pow(0.64 * f1 + 0.36 * f2, 1.55);
+      sum += ridge * weight * amp;
+      norm += amp;
+      weight = clamp(ridge * 1.55, 0.25, 1.0);
+      freq *= 2.18;
+      amp *= 0.50;
+    }
+    return sum / max(norm, 1e-6);
+  }
+
+  float evalMountainSlopeRelief(float u, float v, int seed) {
+    float wx = fbm2d(u * 0.65, v * 0.65, 2, seed + 5) - 0.5;
+    float wy = fbm2d(u * 0.65 + 9.4, v * 0.65 + 4.7, 2, seed + 13) - 0.5;
+    float xr = u + wx * 0.85;
+    float yr = v + wy * 0.85;
+    float total = 0.0;
+    float amp = 0.55;
+    float weight = 1.0;
+    float norm = 0.0;
+    for (int i = 0; i < 4; i++) {
+      float n = valueNoise2d(xr, yr, seed + 29 + i * 37);
+      float r = 1.0 - abs(2.0 * n - 1.0);
+      r = r * r * (1.5 - 0.5 * r);
+      total += r * weight * amp;
+      norm += amp;
+      weight = clamp(r * 1.45, 0.25, 1.0);
+      float nxr = (FBM_CS * xr - FBM_SN * yr) * 2.12 + 4.1;
+      float nyr = (FBM_SN * xr + FBM_CS * yr) * 2.12 + 2.7;
+      xr = nxr;
+      yr = nyr;
+      amp *= 0.48;
+    }
+    return total / max(norm, 1e-6);
+  }
+
+  float evalMountainRidgeHeight(float phiBase, int layer) {
+    float u = phiBase + u_mountainParallaxPhi * (0.55 + 0.15 * float(layer));
+    if (layer == 0) {
+      float massif = 0.046 +
+        0.118 * exp(-pow(abs(u - 0.24) / 0.165, 1.38)) +
+        0.136 * exp(-pow(abs(u - 0.68) / 0.210, 1.38)) +
+        0.114 * exp(-pow(abs(u - 1.12) / 0.220, 1.38)) +
+        0.086 * exp(-pow(abs(u + 0.12) / 0.180, 1.38));
+      float rMacro = ridgedMountain1D(u * 3.6 + 1.3, 3, 301);
+      float rCrag = ridgedMountain1D(u * 11.5 + 4.7, 3, 319);
+      return massif * (0.68 + 0.34 * rMacro + 0.10 * rCrag);
+    } else if (layer == 1) {
+      float massif = 0.030 +
+        0.076 * exp(-pow(abs(u - 0.43) / 0.185, 1.35)) +
+        0.088 * exp(-pow(abs(u - 0.88) / 0.205, 1.35)) +
+        0.078 * exp(-pow(abs(u - 1.30) / 0.195, 1.35)) +
+        0.062 * exp(-pow(abs(u - 0.04) / 0.165, 1.35));
+      float rMacro = ridgedMountain1D(u * 4.4 + 8.2, 3, 347);
+      float rCrag = ridgedMountain1D(u * 14.0 + 2.1, 3, 367);
+      return massif * (0.68 + 0.32 * rMacro + 0.09 * rCrag);
+    } else if (layer == 2) {
+      float massif = 0.016 +
+        0.044 * exp(-pow(abs(u - 0.18) / 0.220, 1.32)) +
+        0.050 * exp(-pow(abs(u - 0.56) / 0.195, 1.32)) +
+        0.054 * exp(-pow(abs(u - 1.00) / 0.230, 1.32));
+      float rMacro = ridgedMountain1D(u * 5.2 + 15.4, 3, 389);
+      float rCrag = ridgedMountain1D(u * 16.5 + 6.3, 2, 401);
+      return massif * (0.70 + 0.30 * rMacro + 0.07 * rCrag);
+    } else {
+      float massif = 0.006 +
+        0.018 * exp(-pow(abs(u - 0.32) / 0.260, 1.30)) +
+        0.022 * exp(-pow(abs(u - 0.80) / 0.250, 1.30)) +
+        0.018 * exp(-pow(abs(u - 1.24) / 0.220, 1.30));
+      float rMacro = ridgedMountain1D(u * 6.4 + 23.1, 3, 431);
+      return massif * (0.72 + 0.28 * rMacro);
+    }
+  }
+
+  vec3 sampleCourtyardBackdrop(vec3 dDir) {
+    vec3 col = skyRadianceForDir(dDir);
+    float phi = atan(dDir.x, max(dDir.z, 1e-4));
+    float elev = dDir.y;
+    if (elev >= 0.25 || elev < -0.025) return col;
+
+    vec3 horizSky = skyRadianceForDir(vec3(dDir.x, 0.018, dDir.z));
+    float dusk = u_duskFactor;
+    vec3 haz = horizSky * vec3(0.56 + 0.18 * dusk, 0.65 - 0.04 * dusk, 0.84 - 0.10 * dusk);
+
+    float sunPhi = atan(u_sunDir.x, max(u_sunDir.z, 1e-4));
+    float sunAzSign = sunPhi >= phi - 0.15 ? 1.0 : -1.0;
+
+    float epsPhi = 0.0035;
+    float baseHaze[4] = float[4](0.36, 0.25, 0.15, 0.06);
+    float isoScale[4] = float[4](22.0, 28.0, 36.0, 46.0);
+
+    for (int layer = 0; layer < 4; layer++) {
+      float hC = evalMountainRidgeHeight(phi, layer);
+      if (elev < hC + 0.0018 && elev >= -0.0060) {
+        float dCrest = max(hC - elev, 0.0);
+        float edgeAlpha = smoothstepCpu(-0.0010, 0.0011, hC - elev);
+        if (edgeAlpha <= 1e-4) continue;
+
+        int seedL = 521 + layer * 67;
+        float sc = isoScale[layer];
+        float meander = (fbm2d(phi * 14.0, elev * 14.0, 3, seedL + 3) - 0.5) * 0.024 * min(dCrest * 18.0, 1.0);
+        float phiArete = phi + dCrest * ((layer % 2 == 0) ? 0.22 : -0.18) + meander;
+        float hPlus = evalMountainRidgeHeight(phiArete + epsPhi, layer);
+        float hMinus = evalMountainRidgeHeight(phiArete - epsPhi, layer);
+        float dH_dPhi = (hPlus - hMinus) / (2.0 * epsPhi);
+
+        float u = (phi + u_mountainParallaxPhi * (0.55 + 0.15 * float(layer))) * sc - dCrest * dH_dPhi * 1.15;
+        float v = elev * sc * 1.05;
+
+        float r0 = evalMountainSlopeRelief(u, v, seedL);
+        float rDu = evalMountainSlopeRelief(u + 0.10, v, seedL);
+        float rDv = evalMountainSlopeRelief(u, v + 0.10, seedL);
+        float dR_du = (rDu - r0) / 0.10;
+        float dR_dv = (rDv - r0) / 0.10;
+
+        float rockFbm = fbm2d(u * 1.45, v * 1.45, 3, seedL + 19);
+        float fineCrag = fbm2d(u * 3.8, v * 3.8, 2, seedL + 41);
+
+        float facetPhi = (-dH_dPhi * 1.35 + dR_du * 0.36) * sunAzSign;
+        float facetElev = 0.38 - dR_dv * 0.32;
+        float sunFacing = smoothstepCpu(-0.16, 0.18, facetPhi);
+        float selfShadow = smoothstepCpu(-0.28, 0.04, facetPhi);
+        float crestRim = exp(-dCrest * 185.0) * smoothstepCpu(-0.04, 0.20, facetPhi);
+        float areteHighlight = exp(-abs(dH_dPhi) * 9.5) * smoothstepCpu(0.45, 0.78, r0) * 0.32;
+        float cliffSteepness = abs(dH_dPhi) * 1.6 + abs(dR_du) * 0.55;
+
+        vec3 rock = vec3(0.0);
+        float isSnow = 0.0;
+        if (layer == 0) {
+          float snowLine = 0.052 + 0.018 * (rockFbm - 0.5) - 0.010 * sunFacing;
+          float altSnow = smoothstepCpu(snowLine, snowLine + 0.038, elev);
+          float slopeHoldsSnow = 1.0 - smoothstepCpu(0.26, 0.68, cliffSteepness);
+          float gullyPocket = smoothstepCpu(0.36, 0.68, (1.0 - r0) * 0.62 + rockFbm * 0.38);
+          float summitCornice = exp(-dCrest * 110.0) * 0.80;
+          isSnow = saturate(altSnow * (0.72 * slopeHoldsSnow + 0.55 * gullyPocket) + summitCornice * altSnow);
+          float granVar = 0.72 + 0.46 * (0.55 * rockFbm + 0.45 * fineCrag);
+          rock = mix(vec3(0.15, 0.16, 0.20) * granVar, vec3(0.91, 0.92, 0.96), isSnow);
+        } else if (layer == 1) {
+          float snowLine = 0.066 + 0.014 * (rockFbm - 0.5);
+          float altSnow = smoothstepCpu(snowLine, snowLine + 0.032, elev);
+          float couloirPocket = smoothstepCpu(0.46, 0.74, (1.0 - r0) * 0.68 + rockFbm * 0.32);
+          isSnow = saturate(altSnow * couloirPocket * 0.82);
+          float granVar = 0.72 + 0.46 * (0.58 * rockFbm + 0.42 * fineCrag);
+          rock = mix(vec3(0.18, 0.17, 0.19) * granVar, vec3(0.87, 0.88, 0.92), isSnow);
+        } else if (layer == 2) {
+          float heather = smoothstepCpu(0.38, 0.72, rockFbm) * (1.0 - smoothstepCpu(0.024, 0.060, elev));
+          float granVar = 0.82 + 0.24 * (0.65 * rockFbm + 0.35 * fineCrag);
+          rock = (vec3(0.16, 0.16, 0.18) * (1.0 - 0.45 * heather) + vec3(0.10, 0.14, 0.11) * heather) * granVar;
+        } else {
+          float wetShore = 1.0 - smoothstepCpu(0.0005, 0.0045, max(elev, 0.0));
+          float granVar = (0.84 + 0.20 * rockFbm) * (1.0 - 0.38 * wetShore);
+          rock = vec3(0.14, 0.15, 0.16) * granVar;
+        }
+
+        float layerContrast = layer <= 1 ? 1.0 : (layer == 2 ? 0.68 : 0.48);
+        float sunMix = (1.0 - layerContrast) * 0.42 + layerContrast * (sunFacing * selfShadow + areteHighlight);
+        vec3 sunC = vec3(
+          (1.65 + 0.46 * dusk) * sunMix + crestRim * (0.52 + 0.25 * isSnow),
+          (1.24 - 0.15 * dusk) * sunMix + crestRim * (0.40 + 0.20 * isSnow),
+          (0.80 - 0.28 * dusk) * sunMix + crestRim * (0.22 + 0.15 * isSnow)
+        );
+        float skyDomeWeight = 0.64 + 0.36 * saturate(facetElev);
+        vec3 shdC = vec3(
+          0.23 + 0.07 * isSnow - 0.03 * dusk,
+          0.37 + 0.11 * isSnow - 0.06 * dusk,
+          0.66 + 0.18 * isSnow - 0.08 * dusk
+        ) * skyDomeWeight;
+
+        vec3 lit = rock * (shdC + sunC);
+        float valleyMist = exp(-pow(max(elev, 0.0) / (0.026 + 0.010 * float(3 - layer)), 1.6)) * (0.28 - 0.04 * float(layer));
+        float shoreMist = exp(-max(elev, 0.0) * 180.0) * 0.26;
+        float altClear = 1.0 - 0.40 * saturate(elev / 0.14);
+        float fogW = clamp(baseHaze[layer] * altClear + valleyMist + shoreMist, 0.0, 0.72);
+        lit = mix(lit, haz, fogW);
+        col = mix(col, lit, edgeAlpha);
+      }
+    }
+    return col;
+  }
+
+  vec3 evaluateExteriorCourtyardScalar(vec3 ro, vec3 rd) {
+    float waterY = -0.04;
+    float denomY = abs(rd.y) < 1e-8 ? -1e-8 : rd.y;
+    float tWater = (waterY - ro.y) / denomY;
+    if (rd.y < -0.0001 && tWater > 0.0 && tWater < 8000.0) {
+      float wx = ro.x + tWater * rd.x;
+      float wz = ro.z + tWater * rd.z;
+      if (wx < u_roomXRight + 0.32 && wz < u_roomZBack + 0.32) {
+        float patioNoise = valueNoise2d(wx * 6.0, wz * 6.0, 405);
+        float pMult = 0.9 + 0.2 * patioNoise;
+        return vec3(0.38, 0.36, 0.33) * pMult * (u_sunRadiance * 0.22 + u_skyZenithRad * 0.45);
+      }
+
+      float wClamp = min(tWater, 95.0);
+      float wxEff = ro.x + wClamp * rd.x;
+      float wzEff = ro.z + wClamp * rd.z;
+      float attenW = 0.48 + 0.52 / (1.0 + 0.055 * tWater);
+      float waveN1 = valueNoise2d(wxEff * 1.55 + wzEff * 0.55, wzEff * 3.40 - wxEff * 0.35, 411) - 0.5;
+      float waveN2 = valueNoise2d(wxEff * 3.80 - wzEff * 1.10, wzEff * 7.40 + wxEff * 0.80, 419) - 0.5;
+      float phiW = atan(rd.x, max(rd.z, 1e-4));
+      float capWave = valueNoise2d(phiW * 95.0, rd.y * 820.0, 427) - 0.5;
+      vec3 nW = normalize(vec3(
+        0.012 * (waveN1 + 0.45 * waveN2) * attenW + 0.016 * capWave,
+        1.0,
+        0.016 * (waveN2 - 0.55 * waveN1) * attenW + 0.012 * capWave
+      ));
+      float dDotN = dot(rd, nW);
+      float reflElev = abs(rd.y) * 0.88 + 0.014 * abs(capWave) + 0.008;
+      vec3 rf = normalize(vec3(
+        rd.x - 2.0 * dDotN * nW.x,
+        max(reflElev, 0.006),
+        rd.z - 2.0 * dDotN * nW.z
+      ));
+      vec3 backdrop = sampleCourtyardBackdrop(rf);
+      float cosTheta = saturate(-dDotN);
+      float shoreDarken = 0.58 + 0.42 * smoothstepCpu(0.0, 0.022, -rd.y);
+      float fWater = min(dielectricFresnelExact(cosTheta, 1.0, 1.333), 0.84) * shoreDarken;
+      float basinMult = 0.72 + 0.28 * exp(-0.12 * max(0.0, wx - u_roomXRight));
+      vec3 wCol = (1.0 - fWater) * vec3(0.06, 0.11, 0.15) * basinMult + fWater * backdrop;
+      vec3 hVec = normalize(u_sunDir - rd);
+      float glint = ggxIsotropicD(saturate(dot(nW, hVec)), 0.058) * 0.068;
+      return wCol + glint * u_sunRadiance;
+    }
+    return sampleCourtyardBackdrop(rd);
+  }
+
+  float boxOcc3D(vec3 p, vec3 c, vec3 e, float basePen, float penRate, vec3 invHyp) {
+    if (p.x >= c.x + e.x - 0.004 || p.y >= c.y + e.y - 0.004 || p.z >= c.z + e.z - 0.004) {
+      return 0.0;
+    }
+    if (
+      p.y > 0.004 &&
+      abs(p.x - c.x) <= e.x + 0.008 &&
+      abs(p.y - c.y) <= e.y + 0.008 &&
+      abs(p.z - c.z) <= e.z + 0.008
+    ) {
+      return 0.0;
+    }
+    vec3 s = u_sunDir;
+    vec3 d = p - c;
+    float dXY = (abs(d.x * s.y - d.y * s.x) - (e.x * s.y + e.y * s.x)) * invHyp.x;
+    float dYZ = (abs(d.y * s.z - d.z * s.y) - (e.y * s.z + e.z * s.y)) * invHyp.y;
+    float dXZ = (abs(d.x * s.z - d.z * s.x) - (e.x * s.z + e.z * s.x)) * invHyp.z;
+    float sDist = length(max(vec3(dXY, dYZ, dXZ), vec3(0.0))) + min(max(max(dXY, dYZ), dXZ), 0.0);
+
+    vec3 t0 = (-d - e) / s;
+    vec3 t1 = (-d + e) / s;
+    float tEnter = max(0.0, max(max(t0.x, t0.y), t0.z));
+    float tExit = min(min(t1.x, t1.y), t1.z);
+    if (tExit <= 0.002) return 0.0;
+    float tSample = max(0.0, 0.5 * (tEnter + tExit));
+    float pen = basePen + penRate * tSample;
+    return 1.0 - smoothstepCpu(-pen * 0.65, pen * 0.85, sDist);
+  }
+
+  float boxOccLocal3D(vec3 p, vec3 s, vec3 c, vec3 e, float basePen, float penRate, vec3 invHyp) {
+    if (p.y >= c.y + e.y - 0.004) {
+      return 0.0;
+    }
+    if (
+      p.y > 0.004 &&
+      abs(p.x - c.x) <= e.x + 0.008 &&
+      abs(p.y - c.y) <= e.y + 0.008 &&
+      abs(p.z - c.z) <= e.z + 0.008
+    ) {
+      return 0.0;
+    }
+    vec3 d = p - c;
+    vec3 as = abs(s);
+    float dXY = (abs(d.x * s.y - d.y * s.x) - (e.x * as.y + e.y * as.x)) * invHyp.x;
+    float dYZ = (abs(d.y * s.z - d.z * s.y) - (e.y * as.z + e.z * as.y)) * invHyp.y;
+    float dXZ = (abs(d.x * s.z - d.z * s.x) - (e.x * as.z + e.z * as.x)) * invHyp.z;
+    float sDist = length(max(vec3(dXY, dYZ, dXZ), vec3(0.0))) + min(max(max(dXY, dYZ), dXZ), 0.0);
+
+    vec3 safeS = vec3(
+      abs(s.x) > 1e-6 ? s.x : (s.x >= 0.0 ? 1e-6 : -1e-6),
+      abs(s.y) > 1e-6 ? s.y : 1e-6,
+      abs(s.z) > 1e-6 ? s.z : (s.z >= 0.0 ? 1e-6 : -1e-6)
+    );
+    vec3 t0 = (-d - e) / safeS;
+    vec3 t1 = (-d + e) / safeS;
+    vec3 tMin = min(t0, t1);
+    vec3 tMax = max(t0, t1);
+    float tEnter = max(0.0, max(max(tMin.x, tMin.y), tMin.z));
+    float tExit = min(min(tMax.x, tMax.y), tMax.z);
+    if (tExit <= 0.002) return 0.0;
+    float tSample = max(0.0, 0.5 * (tEnter + tExit));
+    float pen = basePen + penRate * tSample;
+    return 1.0 - smoothstepCpu(-pen * 0.65, pen * 0.85, sDist);
+  }
+
+  float rayEllipsoidShadow(vec3 p, vec3 c, vec3 r, vec3 s, float penBase, float penSlope, float selfPad) {
+    vec3 o = (p - c) / r;
+    vec3 v = s / r;
+    float v2 = dot(v, v);
+    float tPos = max(-dot(o, v) / v2, 0.0);
+    vec3 q = o + tPos * v;
+    float rSelf = length(o);
+    if (rSelf <= selfPad) return 0.0;
+    float rEff = (r.x + r.y + r.z) * 0.33333333;
+    float dSurf = (length(q) - 1.0) * rEff;
+    float pen = penBase + penSlope * tPos;
+    return 1.0 - smoothstepCpu(-pen, pen, dSurf);
+  }
+
+  float rayCylYShadow(vec3 p, vec2 c, float y0, float y1, float radius, vec3 s, float penBase, float penSlope, bool excludeSelf) {
+    if (excludeSelf) return 0.0;
+    float tY1 = max((y1 - p.y) / s.y, 0.0);
+    if (tY1 <= 0.002) return 0.0;
+    vec2 oc = p.xz - c;
+    float aXz = dot(s.xz, s.xz);
+    float tXz = max(-dot(oc, s.xz) / aXz, 0.0);
+    float tY0 = max((y0 - p.y) / s.y, 0.0);
+    float tEval = clamp(tXz, tY0, tY1);
+    vec2 dXz = oc + tEval * s.xz;
+    float yEval = p.y + tEval * s.y;
+    float dY = max(max(y0 - yEval, yEval - y1), 0.0);
+    float dRad = length(dXz) - radius;
+    float d3d = length(vec2(max(dRad, 0.0), dY)) + min(dRad, 0.0);
+    float pen = penBase + penSlope * tEval;
+    return 1.0 - smoothstepCpu(-pen, pen, d3d);
+  }
+
+  float evaluateWindowSunTransmissionScalar(vec3 p) {
+    float tx = (u_roomXRight - p.x) / u_sunDir.x;
+    float tz = (u_roomZBack - p.z) / u_sunDir.z;
+    float tExit = min(tx, tz);
+    if (tExit <= 0.0) return 0.0;
+
+    vec3 w = p + tExit * u_sunDir;
+    float penR = 0.018 + 0.022 * clamp(tExit, 0.0, 10.0);
+    bool onRightWall = tx <= tz;
+    float winTop = u_windowTopY - 0.02;
+
+    float apertureVis = smoothstepCpu(0.09 - penR, 0.09 + penR, w.y) * (1.0 - smoothstepCpu(winTop - penR, winTop + penR, w.y));
+    if (onRightWall) {
+      apertureVis *= smoothstepCpu(-0.15 - penR, -0.15 + penR, w.z) * (1.0 - smoothstepCpu(7.52 - penR, 7.52 + penR, w.z));
+    } else {
+      float backWinMinX = u_backConcreteXMax + 0.06;
+      float backWinMaxX = u_roomXRight - 0.02;
+      apertureVis *= smoothstepCpu(backWinMinX - penR, backWinMinX + penR, w.x) * (1.0 - smoothstepCpu(backWinMaxX - penR, backWinMaxX + penR, w.x));
+    }
+    if (apertureVis <= 1e-6) return 0.0;
+
+    float mullionHalfW = 0.042;
+    float transomHalfH = 0.032;
+    float visVertMull = 1.0;
+    const float rightMullZ[5] = float[5](-0.20, 1.65, 3.55, 5.50, 7.52);
+
+    if (onRightWall) {
+      float distMullZ = 10.0;
+      for (int i = 0; i < 5; i++) {
+        distMullZ = min(distMullZ, abs(w.z - rightMullZ[i]));
+      }
+      visVertMull = smoothstepCpu(mullionHalfW - penR * 0.45, mullionHalfW + penR * 0.85, distMullZ);
+    } else {
+      float distMullX = 10.0;
+      for (int i = 0; i < 4; i++) {
+        if (i >= u_numBackMullions) break;
+        distMullX = min(distMullX, abs(w.x - u_backMullionX[i]));
+      }
+      visVertMull = smoothstepCpu(mullionHalfW - penR * 0.45, mullionHalfW + penR * 0.85, distMullX);
+    }
+
+    float distTransY = 10.0;
+    for (int i = 0; i < 4; i++) {
+      distTransY = min(distTransY, abs(w.y - u_rightTransomY[i]));
+    }
+    if (u_numRightTransoms > 4) {
+      distTransY = min(distTransY, abs(w.y - u_rightTransomY4));
+    }
+    float visTrans = smoothstepCpu(transomHalfH - penR * 0.45, transomHalfH + penR * 0.85, distTransY);
+
+    float cornerDist = length(vec2(w.x - u_roomXRight, w.z - u_roomZBack));
+    float visCorner = smoothstepCpu(0.08 - penR * 0.4, 0.08 + penR * 0.8, cornerDist);
+
+    float sunVis = apertureVis * visVertMull * visTrans * visCorner;
+    if (sunVis <= 1e-6) return 0.0;
+
+    vec3 s = u_sunDir;
+    vec3 invHyp = vec3(
+      1.0 / length(vec2(s.x, s.y)),
+      1.0 / length(vec2(s.y, s.z)),
+      1.0 / length(vec2(s.x, s.z))
+    );
+    vec2 sunSl = s.xz / max(s.y, 0.05);
+
+    float tableShadow = 0.0;
+    if (p.y < 0.342) {
+      float tabCx = 0.33 + u_tableParams.x;
+      float tabCz = 1.77 + u_tableParams.y;
+      float occTop = boxOcc3D(p, vec3(tabCx, 0.36, tabCz), vec3(u_tableParams.z, 0.030, 0.69), 0.012, 0.024, invHyp);
+      float occPed = rayCylYShadow(p, vec2(tabCx, tabCz), 0.0, 0.334, 0.315, s, 0.008, 0.024, false);
+      tableShadow = max(occTop, occPed) * 0.994;
+    }
+
+    float stillLifeShadow = 0.0;
+    if (p.y > 0.386 && p.y < 0.680 && p.x > -0.68 + u_tableParams.x && p.x < 1.00 + u_tableParams.x && p.z > 1.05 + u_tableParams.y && p.z < 2.48 + u_tableParams.y) {
+      vec2 cupC = vec2(0.24, 1.82) + u_tableParams.xy;
+      vec2 cupR = p.xz - cupC;
+      bool isCupOuterWall = (p.y > 0.397 && p.y <= 0.483 && length(cupR) > 0.050 && dot(cupR, s.xz) > -0.008);
+      float shCupBody = rayCylYShadow(p, cupC, 0.400, 0.482, 0.053, s, 0.003, 0.022, isCupOuterWall) * 0.92;
+      float shSaucer = rayEllipsoidShadow(
+        p,
+        vec3(cupC.x, 0.400, cupC.y),
+        vec3(0.088, 0.0105, 0.088),
+        s,
+        0.003,
+        0.020,
+        1.04
+      ) * 0.88;
+
+      float occCbBot = boxOcc3D(
+        p,
+        vec3(-0.12 + u_tableParams.x, 0.405, 2.04 + u_tableParams.y),
+        vec3(0.162, 0.015, 0.218),
+        0.005,
+        0.018,
+        invHyp
+      ) * 0.91;
+      float occCbTop = boxOcc3D(
+        p,
+        vec3(-0.12 + u_tableParams.x, 0.436, 2.04 + u_tableParams.y),
+        vec3(0.145, 0.016, 0.195),
+        0.005,
+        0.018,
+        invHyp
+      ) * 0.91;
+      float shCbook = max(occCbBot, occCbTop);
+
+      vec2 obRel = p.xz - u_bookCarafePos.xy;
+      vec3 obLocP = vec3(
+        BOOK_COS_019 * obRel.x + BOOK_SIN_019 * obRel.y,
+        p.y,
+        -BOOK_SIN_019 * obRel.x + BOOK_COS_019 * obRel.y
+      );
+      vec3 obLocS = vec3(
+        BOOK_COS_019 * s.x + BOOK_SIN_019 * s.z,
+        s.y,
+        -BOOK_SIN_019 * s.x + BOOK_COS_019 * s.z
+      );
+      vec3 obInvHyp = vec3(
+        1.0 / length(vec2(obLocS.x, obLocS.y)),
+        1.0 / length(vec2(obLocS.y, obLocS.z)),
+        1.0 / length(vec2(obLocS.x, obLocS.z))
+      );
+      float shObCov = boxOccLocal3D(obLocP, obLocS, vec3(0.0, 0.396, 0.0), vec3(0.235, 0.006, 0.168), 0.004, 0.016, obInvHyp);
+      float shObPgs = boxOccLocal3D(obLocP, obLocS, vec3(0.0, 0.408, 0.0), vec3(0.222, 0.010, 0.158), 0.004, 0.016, obInvHyp);
+      float shObook = max(shObCov, shObPgs) * 0.91;
+
+      vec2 vaseC = vec2(0.44, 1.98) + u_tableParams.xy;
+      float shOvaseBelly = rayEllipsoidShadow(p, vec3(vaseC.x, 0.495, vaseC.y), vec3(0.088, 0.105, 0.088), s, 0.004, 0.022, 1.028);
+      bool isOvaseNeckSelf = (p.y > 0.562 && p.y < 0.648 && length(p.xz - vaseC) < 0.050);
+      float shOvaseNeck = rayCylYShadow(p, vaseC, 0.565, 0.645, 0.044, s, 0.004, 0.024, isOvaseNeckSelf);
+      float shCarafeCollar = rayCylYShadow(p, u_bookCarafePos.zw, 0.628, 0.672, 0.0405, s, 0.005, 0.024, false) * 0.88;
+      float shOvase = max(max(shOvaseBelly, shOvaseNeck), shCarafeCollar) * 0.90;
+
+      stillLifeShadow = max(max(shCupBody, shSaucer), max(shOvase, max(shCbook, shObook)));
+    }
+
+    float chairShadow = 0.0;
+    if (p.y < 0.85 && p.x > u_chairBase.x - 1.55 && p.x < u_chairBase.x + 0.95 && p.z > u_chairBase.z - 1.15 && p.z < u_chairBase.z + 1.05) {
+      float chx = p.x - u_chairBase.x;
+      float chz = p.z - u_chairBase.z;
+      vec3 locP = vec3(
+        u_chairRot.y * chx + u_chairRot.z * chz,
+        p.y,
+        -u_chairRot.z * chx + u_chairRot.y * chz
+      );
+      vec3 locS = vec3(
+        u_chairRot.y * s.x + u_chairRot.z * s.z,
+        s.y,
+        -u_chairRot.z * s.x + u_chairRot.y * s.z
+      );
+      vec3 locInvHyp = vec3(
+        1.0 / length(vec2(locS.x, locS.y)),
+        1.0 / length(vec2(locS.y, locS.z)),
+        1.0 / length(vec2(locS.x, locS.z))
+      );
+      float chSeat = boxOccLocal3D(locP, locS, vec3(0.0, 0.215, -0.02), vec3(0.41, 0.165, 0.395), 0.018, 0.026, locInvHyp) * 0.94;
+      float chBack = boxOccLocal3D(locP, locS, vec3(0.0, 0.565, 0.312), vec3(0.40, 0.275, 0.085), 0.018, 0.026, locInvHyp) * 0.94;
+      float chArmL = boxOccLocal3D(locP, locS, vec3(-0.425, 0.465, -0.01), vec3(0.028, 0.025, 0.245), 0.018, 0.026, locInvHyp) * 0.90;
+      float chArmR = boxOccLocal3D(locP, locS, vec3(0.425, 0.465, -0.01), vec3(0.028, 0.025, 0.245), 0.018, 0.026, locInvHyp) * 0.90;
+      float chairBoxSh = max(max(chSeat, chBack), max(chArmL, chArmR));
+
+      float chairLegSh = 0.0;
+      if (p.y < 0.38) {
+        float dSegMin = 10.0;
+        for (int i = 0; i < 8; i++) {
+          vec3 a3 = u_chairSteelA[i];
+          vec3 b3 = u_chairSteelB[i];
+          vec2 aProj = a3.xz - max(a3.y - p.y, 0.0) * sunSl;
+          vec2 bProj = b3.xz - max(b3.y - p.y, 0.0) * sunSl;
+          vec2 ab = bProj - aProj;
+          vec2 ap = p.xz - aProj;
+          float tSeg = clamp(dot(ap, ab) / max(dot(ab, ab), 1e-8), 0.0, 1.0);
+          dSegMin = min(dSegMin, length(ap - tSeg * ab));
+        }
+        chairLegSh = (1.0 - smoothstepCpu(0.010, 0.028, dSegMin)) * 0.91;
+      }
+      chairShadow = max(chairBoxSh, chairLegSh);
+    }
+
+    float benchShadow = 0.0;
+    if (p.y < 0.528 && p.z > 5.85) {
+      float occCab = boxOcc3D(p, vec3(u_benchParams.x, 0.290, 7.23), vec3(u_benchParams.y - 0.02, 0.205, 0.33), 0.014, 0.024, invHyp) * 0.95;
+      float occSlab = boxOcc3D(p, vec3(u_benchParams.x, 0.5105, 7.22), vec3(u_benchParams.y, 0.0165, 0.35), 0.015, 0.024, invHyp) * 0.95;
+      float occPlinth = boxOcc3D(p, vec3(u_benchParams.x, 0.0425, 7.25), vec3(u_benchParams.y - 0.08, 0.0425, 0.28), 0.010, 0.020, invHyp) * 0.96;
+      benchShadow = max(max(occCab, occSlab), occPlinth);
+      if (p.y < 0.095) {
+        float legLf = boxOcc3D(p, vec3(u_benchParams.z, 0.045, 6.96), vec3(0.018, 0.045, 0.018), 0.008, 0.016, invHyp) * 0.92;
+        float legRf = boxOcc3D(p, vec3(u_benchParams.w, 0.045, 6.96), vec3(0.018, 0.045, 0.018), 0.008, 0.016, invHyp) * 0.92;
+        float legLb = boxOcc3D(p, vec3(u_benchParams.z, 0.045, 7.46), vec3(0.018, 0.045, 0.018), 0.008, 0.016, invHyp) * 0.92;
+        float legRb = boxOcc3D(p, vec3(u_benchParams.w, 0.045, 7.46), vec3(0.018, 0.045, 0.018), 0.008, 0.016, invHyp) * 0.92;
+        benchShadow = max(benchShadow, max(max(legLf, legRf), max(legLb, legRb)));
+      }
+    }
+    if ((p.y > 0.515 && p.y < 0.530 && p.z > 6.85) || (p.z > 7.56 && p.y > 0.52 && p.y < 1.38)) {
+      float credDx = u_benchParams.x + 0.85;
+      float bScaleX = u_benchParams.y / 1.70;
+      vec2 v1Center = vec2(0.22 * bScaleX + credDx, 7.16);
+      float dhV1 = clamp(0.84 - p.y, 0.005, 0.32);
+      vec2 sv1 = -dhV1 * sunSl;
+      vec2 rv1 = p.xz - v1Center;
+      float tv1 = clamp(dot(rv1, sv1) / max(dot(sv1, sv1), 1e-8), 0.0, 1.0);
+      float dv1 = length(rv1 - tv1 * sv1);
+      float shV1 = (p.y > 0.531 && length(rv1) < 0.118) ? 0.0 : (1.0 - smoothstepCpu(0.098, 0.122, dv1)) * 0.86;
+
+      vec2 v2Center = vec2(0.46 * bScaleX + credDx, 7.22);
+      float dhV2 = clamp(0.65 - p.y, 0.005, 0.13);
+      vec2 sv2 = -dhV2 * sunSl;
+      vec2 rv2 = p.xz - v2Center;
+      float tv2 = clamp(dot(rv2, sv2) / max(dot(sv2, sv2), 1e-8), 0.0, 1.0);
+      float dv2 = length(rv2 - tv2 * sv2);
+      float shV2 = (p.y > 0.531 && length(rv2) < 0.066) ? 0.0 : (1.0 - smoothstepCpu(0.050, 0.070, dv2)) * 0.84;
+
+      float shFolio = boxOcc3D(p, vec3(-0.52 * bScaleX + credDx, 0.559, 7.18), vec3(0.21, 0.032, 0.16), 0.006, 0.018, invHyp) * 0.88;
+      float shArt = boxOcc3D(p, vec3(-1.58 * bScaleX + credDx, 1.086, 7.24), vec3(0.48 * bScaleX, 0.56, 0.022), 0.008, 0.020, invHyp) * 0.90;
+      benchShadow = max(benchShadow, max(max(shV1, shV2), max(shFolio, shArt)));
+    }
+
+    return sunVis * (1.0 - tableShadow) * (1.0 - stillLifeShadow) * (1.0 - chairShadow) * (1.0 - benchShadow);
+  }
+
+  struct MatOut {
+    vec3 albedo;
+    float rough;
+    vec3 n;
+    vec2 aniso;
+  };
+
+  vec3 valueNoise2dGrad(float x, float y, int seed) {
+    int ox = (seed * 173 + 37) & 1023;
+    int oy = (seed * 293 + 91) & 1023;
+    float xf = floor(x);
+    float yf = floor(y);
+    float fx = x - xf;
+    float fy = y - yf;
+    float ux = fx * fx * fx * (fx * (fx * 6.0 - 15.0) + 10.0);
+    float uy = fy * fy * fy * (fy * (fy * 6.0 - 15.0) + 10.0);
+    float dux = 30.0 * fx * fx * (fx - 1.0) * (fx - 1.0);
+    float duy = 30.0 * fy * fy * (fy - 1.0) * (fy - 1.0);
+
+    int ix0 = (int(xf) + ox) & 1023;
+    int iy0 = (int(yf) + oy) & 1023;
+    int ix1 = (ix0 + 1) & 1023;
+    int iy1 = (iy0 + 1) & 1023;
+
+    float c00 = texelFetch(u_randTex, ivec2(ix0, iy0), 0).r;
+    float c10 = texelFetch(u_randTex, ivec2(ix1, iy0), 0).r;
+    float c01 = texelFetch(u_randTex, ivec2(ix0, iy1), 0).r;
+    float c11 = texelFetch(u_randTex, ivec2(ix1, iy1), 0).r;
+
+    float k1 = c10 - c00;
+    float k2 = c01 - c00;
+    float k3 = c11 - c10 - c01 + c00;
+    float val = c00 + ux * k1 + uy * (k2 + ux * k3);
+    float dvdx = dux * (k1 + uy * k3);
+    float dvdy = duy * (k2 + ux * k3);
+    return vec3(val, dvdx, dvdy);
+  }
+
+  MatOut materialWovenBoucleRugScalar(vec3 p, vec3 nIn, bool isBorder, bool fastMode) {
+    MatOut m;
+    m.aniso = vec2(0.0);
+    float fx = p.x;
+    float fz = p.z;
+    if (fastMode) {
+      float macroW = valueNoise2d(fx * 6.0, fz * 6.0, 751);
+      m.albedo = isBorder
+        ? vec3(0.44, 0.385, 0.315)
+        : vec3(0.585, 0.535, 0.455) * (0.92 + 0.14 * macroW);
+      m.rough = 0.82;
+      m.n = nIn;
+      return m;
+    }
+
+    float dzDist = max(fz - 0.95, 0.0);
+    float aa1 = 1.0 / (1.0 + 0.14 * dzDist * dzDist);
+    float aa2 = 1.0 / (1.0 + 0.38 * dzDist * dzDist);
+
+    vec3 nKnot = valueNoise2dGrad(fx * 56.0 + fz * 5.0, fz * 50.0 - fx * 4.5, 761);
+    vec3 nTwist = valueNoise2dGrad(fx * 112.0 - fz * 11.0, fz * 98.0 + fx * 9.5, 769);
+    float fineFleck = valueNoise2d(fx * 185.0 + 1.7, fz * 165.0 - 2.3, 773);
+
+    float weftPhase = fz * 168.0 + 0.55 * sin(fx * 8.5) + (nKnot.x - 0.5) * 1.25;
+    float weftRib = 0.5 + 0.5 * sin(weftPhase);
+    float warpRib = 0.5 + 0.5 * sin(fx * 84.0 + (nTwist.x - 0.5) * 1.1);
+
+    float bKnot = 1.0 - abs(2.0 * nKnot.x - 1.0);
+    float bTwist = 1.0 - abs(2.0 * nTwist.x - 1.0);
+    float loopDome = clamp(
+      0.38 * weftRib * aa2 +
+      0.38 * bKnot * aa1 +
+      0.16 * bTwist * aa2 +
+      0.08 * warpRib * aa2,
+      0.0, 1.0
+    );
+
+    float slubBand = valueNoise2d(fx * 5.5, fz * 42.0, 787);
+    float macroPatina = fbm2d(fx * 1.5, fz * 1.5, 2, 793);
+
+    vec3 woolEcru = vec3(0.635, 0.585, 0.498);
+    vec3 woolOatmeal = vec3(0.535, 0.480, 0.398);
+    vec3 woolFlaxFleck = vec3(0.395, 0.345, 0.275);
+
+    float yarnMix = clamp(0.45 * nKnot.x + 0.35 * slubBand + 0.20 * fineFleck, 0.0, 1.0);
+    float fleckW = ((fineFleck > 0.84 && nTwist.x > 0.58) ? 1.0 : 0.0) * aa1;
+    vec3 yarnCol = mix(woolOatmeal, woolEcru, yarnMix);
+    yarnCol = mix(yarnCol, woolFlaxFleck, 0.28 * fleckW);
+
+    float chDx = fx - u_chairBase.x;
+    float chDz = fz - u_chairBase.z;
+    float lcxR = u_chairRot.y * chDx + u_chairRot.z * chDz;
+    float lczR = -u_chairRot.z * chDx + u_chairRot.y * chDz;
+    float signedDxRun = (abs(lcxR) - 0.425) * sign(lcxR);
+    float alongRun = 1.0 - smoothstepCpu(0.365, 0.415, abs(lczR - 0.005));
+    float dRunAbs = abs(abs(lcxR) - 0.425);
+    float troughDarken = 1.0 - 0.38 * alongRun * exp(-((dRunAbs / 0.020) * (dRunAbs / 0.020)));
+    float pileSlopeLocalX = alongRun * (signedDxRun / 0.018) * exp(-((dRunAbs / 0.022) * (dRunAbs / 0.022))) * 0.28;
+    float nxTrough = u_chairRot.y * pileSlopeLocalX;
+    float nzTrough = u_chairRot.z * pileSlopeLocalX;
+
+    vec3 boucleAlb = yarnCol *
+      (0.77 + 0.33 * loopDome) *
+      (0.96 + 0.07 * macroPatina) *
+      troughDarken;
+
+    float twillWave = (0.5 + 0.5 * sin((fx + fz) * 145.0)) * aa2;
+    vec3 borderAlb = vec3(0.44, 0.385, 0.315) * (0.90 + 0.16 * twillWave);
+
+    m.albedo = isBorder ? borderAlb : boucleAlb;
+
+    float dWeftSlope = cos(weftPhase) * 0.135 * aa2;
+    float nxWool = (nKnot.y * 0.22 * aa1 + nTwist.y * 0.14 * aa2) + nxTrough;
+    float nzWool = (dWeftSlope + nKnot.z * 0.22 * aa1 + nTwist.z * 0.14 * aa2) + nzTrough;
+    float nxLoop = isBorder ? (twillWave - 0.25) * 0.08 : nxWool;
+    float nzLoop = isBorder ? -(twillWave - 0.25) * 0.08 : nzWool;
+    m.n = normalize(nIn + vec3(nxLoop, 0.0, nzLoop));
+    m.rough = isBorder ? 0.68 : clamp(0.76 + 0.12 * (1.0 - loopDome), 0.70, 0.90);
+    return m;
+  }
+
+  MatOut materialBoardFormedConcreteScalar(vec3 p, vec3 nIn, bool isCeiling, bool fastMode) {
+    MatOut m;
+    float uCoord = isCeiling ? p.x : (p.x - u_roomXLeft);
+    float vCoord = isCeiling ? p.z : p.y;
+    float panelW = isCeiling ? 1.55 : u_concretePanelW;
+    float panelH = isCeiling ? 1.85 : 1.0625;
+    float boardH = isCeiling ? 0.205 : 0.2125;
+
+    float boardIdx = floor(vCoord / boardH);
+    float panelUIdx = floor(uCoord / panelW);
+    float panelVIdx = floor(vCoord / panelH);
+
+    float boardHash = hash2d(int(boardIdx), int(panelUIdx), 501);
+    float boardTint = 0.93 + 0.13 * boardHash;
+
+    float uLocalBoard = uCoord * 2.2 + boardHash * 11.3;
+    float vLocalBoard = (vCoord / boardH - boardIdx) * 6.0;
+    float grainF = fbm2d(uLocalBoard * 1.4, vLocalBoard * 5.2, fastMode ? 1 : 3, 509);
+    float cathedral = sin(vLocalBoard * 4.5 + grainF * 6.5) * 0.5 + 0.5;
+    float finePores = fastMode ? 0.5 : valueNoise2d(uCoord * 38.0, vCoord * 38.0, 521);
+    float microSpall = fastMode ? 0.5 : valueNoise2d(uCoord * 92.0, vCoord * 92.0, 537);
+
+    float gMult = 0.62 + 0.38 * grainF;
+    float cMult = cathedral * 0.38;
+    vec3 alb = vec3(
+      0.41 * gMult + 0.04 * cMult,
+      0.40 * gMult + 0.02 * cMult,
+      0.38 * gMult
+    ) * boardTint;
+
+    if (!fastMode) {
+      float pitMask = smoothstepCpu(0.84, 0.95, microSpall);
+      float pMult = (0.93 + 0.12 * finePores) * (1.0 - 0.18 * pitMask);
+      alb *= pMult;
+    }
+
+    float vFrac = abs(vCoord / boardH - floor(vCoord / boardH + 0.5)) * boardH;
+    float uFrac = abs(uCoord / panelW - floor(uCoord / panelW + 0.5)) * panelW;
+    float pvFrac = abs(vCoord / panelH - floor(vCoord / panelH + 0.5)) * panelH;
+
+    float boardSeam = 1.0 - 0.32 * (1.0 - smoothstepCpu(0.0, 0.0048, vFrac));
+    float panelSeam = 1.0 - 0.52 * (1.0 - min(smoothstepCpu(0.0, 0.0068, uFrac), smoothstepCpu(0.0, 0.0068, pvFrac)));
+    alb *= boardSeam * panelSeam;
+
+    vec3 outN = nIn;
+    float seamSlopeV = sin((vCoord / boardH) * 2.0 * PI) * exp(-((vFrac / 0.006) * (vFrac / 0.006))) * 0.16;
+    float grainSlope = (cathedral - 0.5) * 0.042;
+
+    if (!isCeiling && !fastMode) {
+      float pu = uCoord - panelUIdx * panelW;
+      float pv = vCoord - panelVIdx * panelH;
+      float c0 = 0.22 * panelW, c1 = 0.50 * panelW, c2 = 0.78 * panelW;
+      float r0 = 0.26 * panelH, r1 = 0.74 * panelH;
+      float d0 = abs(pu - c0), d1 = abs(pu - c1), d2 = abs(pu - c2);
+      float colC = (d0 <= d1 && d0 <= d2) ? c0 : (d1 <= d2 ? c1 : c2);
+      float rowC = abs(pv - r0) <= abs(pv - r1) ? r0 : r1;
+      float vecU = pu - colC;
+      float vecV = pv - rowC;
+      float rHole = length(vec2(vecU, vecV));
+      float coneOuterR = 0.024;
+      float coneInnerR = 0.011;
+      bool inCone = rHole < coneOuterR;
+      bool inPlug = rHole < coneInnerR;
+      float coneAo = inPlug ? 0.22 : (inCone ? (0.48 + 0.52 * ((rHole - coneInnerR) / (coneOuterR - coneInnerR))) : 1.0);
+      alb *= coneAo;
+      float bevelStrength = (inCone && !inPlug) ? 0.65 : 0.0;
+      float invR = 1.0 / max(rHole, 1e-5);
+      outN.x += -vecU * invR * bevelStrength;
+      outN.y += -vecV * invR * bevelStrength + seamSlopeV + grainSlope;
+    } else {
+      outN.z += seamSlopeV + grainSlope;
+    }
+
+    m.albedo = alb;
+    m.rough = clamp(0.34 + 0.12 * (1.0 - grainF) - 0.06 * cathedral, 0.22, 0.55);
+    m.n = normalize(outN);
+    m.aniso = vec2(0.0);
+    return m;
+  }
+
+  MatOut materialOiledOakAndTravertineFloorScalar(float fx, float fz, bool isTravertineZone) {
+    MatOut m;
+    if (isTravertineZone) {
+      float travBand = fbm2d(fx * 2.2 + sin(fz * 1.7) * 0.4, fz * 0.95, 3, 701);
+      float travVein = 0.5 + 0.5 * sin(fx * 6.5 + travBand * 7.2 + fz * 1.4);
+      float travPores = valueNoise2d(fx * 42.0, fz * 16.0, 719);
+      float porePit = smoothstepCpu(0.76, 0.90, travPores) * smoothstepCpu(0.35, 0.75, travVein);
+      float vMult = 0.55 + 0.45 * travVein;
+      float oMult = 0.45 * (1.0 - travVein);
+      float bMult = (0.93 + 0.12 * travBand) * (1.0 - 0.35 * porePit);
+      float jointX = abs(fx / 0.90 - floor(fx / 0.90 + 0.5)) * 0.90;
+      float jointZ = abs(fz / 1.20 - floor(fz / 1.20 + 0.5)) * 1.20;
+      float stoneJoint = smoothstepCpu(0.0, 0.0035, min(jointX, jointZ));
+      float jMult = bMult * (0.42 + 0.58 * stoneJoint);
+      m.albedo = (vec3(0.56, 0.50, 0.41) * vMult + vec3(0.44, 0.37, 0.29) * oMult) * jMult;
+      float rough = clamp(0.095 + 0.055 * (1.0 - travVein) + 0.22 * porePit, 0.08, 0.38);
+      m.rough = rough;
+      m.aniso = vec2(rough * 0.75, rough * 1.65);
+      float travNx = (travBand - 0.5) * 0.012;
+      m.n = normalize(vec3(travNx, 1.0, 0.0));
+      return m;
+    }
+
+    float plankW = 0.23;
+    float plankIdx = floor((fx + 4.0) / plankW);
+    float uPlank = (fx + 4.0) / plankW - plankIdx;
+    float plankOffset = hash2d(int(plankIdx), 0, 601) * 2.4;
+    float plankZIdx = floor((fz + plankOffset) / 2.4);
+    float vPlank = (fz + plankOffset) / 2.4 - plankZIdx;
+
+    float idHash = hash2d(int(plankIdx), int(plankZIdx), 607);
+    float ringCenterU = 0.25 + 0.50 * hash2d(int(plankIdx), int(plankZIdx), 613);
+    float grainWarp = fbm2d(fx * 5.5 + idHash * 7.0, fz * 1.4, 2, 619);
+    float du = (uPlank - ringCenterU) * 14.0;
+    float ringPhase = du * du + fz * 2.6 + grainWarp * 5.8;
+    float rings = 0.5 + 0.5 * sin(ringPhase);
+    float ringsSharp = pow(rings, 1.8);
+
+    float fineFiber = valueNoise2d(fx * 85.0, fz * 14.0, 631);
+    float plankTone = 0.82 + 0.34 * idHash;
+    float lMult = (1.0 - 0.52 * ringsSharp) * plankTone;
+    float dMult = 0.52 * ringsSharp * plankTone;
+    float fMult = 0.90 + 0.18 * fineFiber;
+    float wMult = 0.08 * grainWarp;
+
+    float edgeU = min(uPlank, 1.0 - uPlank) * plankW;
+    float edgeV = min(vPlank, 1.0 - vPlank) * 2.4;
+    float grooveU = smoothstepCpu(0.0, 0.0045, edgeU);
+    float grooveV = smoothstepCpu(0.0, 0.0055, edgeV);
+    float grooveMask = grooveU * grooveV;
+    float gMult = 0.28 + 0.72 * grooveMask;
+
+    m.albedo = ((vec3(0.38, 0.25, 0.14) * lMult + vec3(0.20, 0.12, 0.065) * dMult) * fMult + vec3(0.44, 0.28, 0.15) * wMult) * gMult;
+    float rough = clamp(0.115 + 0.065 * ringsSharp + 0.035 * (1.0 - idHash) + 0.25 * (1.0 - grooveMask), 0.085, 0.42);
+    m.rough = rough;
+    m.aniso = vec2(rough * 0.75, rough * 1.65);
+    float bevelNx = (uPlank < 0.03 ? -1.0 : (uPlank > 0.97 ? 1.0 : 0.0)) * (1.0 - grooveU) * 0.22;
+    float fiberNx = (fineFiber - 0.5) * 0.016;
+    m.n = normalize(vec3(bevelNx + fiberNx, 1.0, 0.0));
+    return m;
+  }
+
+  MatOut materialAmericanWalnutScalar(vec3 p, vec3 nIn, bool fastMode) {
+    MatOut m;
+    float u = p.z * 3.5 + p.x * 2.0;
+    float v = p.y * 2.8;
+    float wNoise = fastMode ? valueNoise2d(u, v, 809) : fbm2d(u, v, 3, 809);
+    float grain = 0.5 + 0.5 * sin(u * 8.5 + wNoise * 6.8);
+    float nMult = 0.90 + 0.20 * wNoise;
+    m.albedo = mix(vec3(0.11, 0.058, 0.032), vec3(0.24, 0.135, 0.072), grain) * nMult;
+    m.rough = clamp(0.20 + 0.10 * (1.0 - grain), 0.16, 0.34);
+    m.n = nIn;
+    m.aniso = vec2(0.0);
+    return m;
+  }
+
+  struct RayHit {
+    float t;
+    vec3 p;
+    vec3 n;
+    int matId;
+    vec3 albedo;
+    float rough;
+    vec3 f0;
+    float metallic;
+    vec2 uv;
+  };
+
+  float computeAnalyticAoScalar(vec3 p, float ny, int matId) {
+    float caseFrontActive = -2.72 + u_leftWallShiftX;
+    float dFloor = saturate(p.y / 0.38);
+    float dCeil = saturate((u_roomYCeil - p.y) / 0.45);
+    float dBack = saturate((u_roomZBack - p.z) / 0.45);
+    float dLeft = saturate((p.x - caseFrontActive) / 0.42);
+
+    float cornerAo =
+      (0.74 + 0.26 * sqrt(dFloor * dBack)) *
+      (0.76 + 0.24 * sqrt(dCeil * dBack)) *
+      (0.72 + 0.28 * sqrt(max(0.0, dLeft) * dFloor));
+    float alcoveDepth = saturate((caseFrontActive - p.x) / 0.38);
+    float alcoveAo = 1.0 - 0.52 * pow(alcoveDepth, 1.2);
+
+    float floorAo = 1.0;
+    if (p.y < 0.026) {
+      float tabCx = 0.33 + u_tableParams.x;
+      float tabCz = 1.77 + u_tableParams.y;
+      float rPed = length(vec2(p.x - tabCx, p.z - tabCz));
+      float aoPed = 0.22 + 0.78 * smoothstepCpu(0.308, 0.46, rPed);
+
+      float dxTab = max(abs(p.x - tabCx) - u_tableParams.w, 0.0);
+      float dzTab = max(abs(p.z - tabCz) - 0.52, 0.0);
+      float aoCanopy = 0.74 + 0.26 * smoothstepCpu(0.0, 0.24, length(vec2(dxTab, dzTab)));
+      float aoUnderTable = aoPed * aoCanopy;
+
+      float chDx = p.x - u_chairBase.x;
+      float chDz = p.z - u_chairBase.z;
+      float rChair = length(vec2(chDx, chDz));
+      float lcxAo = u_chairRot.y * chDx + u_chairRot.z * chDz;
+      float lczAo = -u_chairRot.z * chDx + u_chairRot.y * chDz;
+      float dRunnerAo = length(vec2(abs(abs(lcxAo) - 0.425), max(abs(lczAo - 0.005) - 0.382, 0.0)));
+      float aoRunners = (0.07 + 0.93 * smoothstepCpu(0.008, 0.030, dRunnerAo)) *
+                        (0.64 + 0.36 * smoothstepCpu(0.012, 0.075, dRunnerAo));
+      float aoUnderChair = (0.30 + 0.70 * smoothstepCpu(0.18, 0.64, rChair)) * aoRunners;
+
+      float dxBn = max(abs(p.x - u_benchParams.x) - (u_benchParams.y - 0.03), 0.0);
+      float dzBn = max(abs(p.z - 7.22) - 0.32, 0.0);
+      float aoUnderBench = 0.34 + 0.66 * smoothstepCpu(0.0, 0.28, length(vec2(dxBn, dzBn)));
+
+      float aoRugEdge = 1.0;
+      if (p.y < 0.004) {
+        float rugMinX = u_rugX.x;
+        float rugMaxX = u_rugX.y;
+        float rugMinZ = 0.48 + 0.5 * u_tableParams.y;
+        float rugMaxZ = 3.92 + 0.5 * u_tableParams.y;
+        float dxRug = max(max(rugMinX - p.x, p.x - rugMaxX), 0.0);
+        float dzRug = max(max(rugMinZ - p.z, p.z - rugMaxZ), 0.0);
+        float dRugEdge = length(vec2(dxRug, dzRug));
+        if (dRugEdge > 0.0 && dRugEdge < 0.065) {
+          aoRugEdge = 0.44 + 0.56 * smoothstepCpu(0.0, 0.060, dRugEdge);
+        }
+      }
+      floorAo = aoUnderTable * aoUnderChair * aoUnderBench * aoRugEdge;
+    }
+
+    float tableAo = 1.0;
+    if (matId == MAT_COFFEE_TABLE_TOP) {
+      if (ny > 0.8) {
+        float tabDx = u_tableParams.x;
+        float tabDz = u_tableParams.y;
+        float rVase = length(vec2(p.x - (0.44 + tabDx), p.z - (1.98 + tabDz)));
+        float aoVase = 0.18 + 0.82 * smoothstepCpu(0.055, 0.135, rVase);
+        float rSaucer = length(vec2(p.x - (0.24 + tabDx), p.z - (1.82 + tabDz)));
+        float aoCup = 0.22 + 0.78 * smoothstepCpu(0.062, 0.125, rSaucer);
+        float rCarafe = length(vec2(p.x - u_bookCarafePos.z, p.z - u_bookCarafePos.w));
+        float aoCarafe = 0.24 + 0.76 * smoothstepCpu(0.048, 0.115, rCarafe);
+        float rTumbler = length(vec2(p.x - u_tumblerPos.x, p.z - u_tumblerPos.y));
+        float aoTumbler = 0.22 + 0.78 * smoothstepCpu(0.048, 0.095, rTumbler);
+        float bxL = BOOK_COS_019 * (p.x - u_bookCarafePos.x) + BOOK_SIN_019 * (p.z - u_bookCarafePos.y);
+        float bzL = -BOOK_SIN_019 * (p.x - u_bookCarafePos.x) + BOOK_COS_019 * (p.z - u_bookCarafePos.y);
+        float dBook = length(max(abs(vec2(bxL, bzL)) - vec2(0.23, 0.165), vec2(0.0)));
+        float aoBook = 0.22 + 0.78 * smoothstepCpu(0.0, 0.055, dBook);
+        float dStack = length(max(abs(vec2(p.x - (-0.12 + tabDx), p.z - (2.04 + tabDz))) - vec2(0.155, 0.215), vec2(0.0)));
+        float aoStack = 0.22 + 0.78 * smoothstepCpu(0.0, 0.055, dStack);
+        tableAo = aoVase * aoCup * aoCarafe * aoTumbler * aoBook * aoStack;
+      } else if (ny < -0.5) {
+        tableAo = 0.18;
+      }
+    }
+    return cornerAo * alcoveAo * floorAo * tableAo;
+  }
+
+  vec4 vesselCausticPatternScalar(vec2 pxz, vec2 vxz, float radius, float focalDist, vec3 tc, vec3 tb, float intensity) {
+    vec2 rel = pxz - vxz;
+    float uAlong = rel.x * u_sunHorizPerp.x + rel.y * u_sunHorizPerp.y;
+    float vPerp = rel.x * u_sunHorizPerp.z + rel.y * u_sunHorizPerp.w;
+    float uN = uAlong / focalDist;
+    float vN = vPerp / radius;
+    float ellR = length(vec2((uAlong - 0.85 * focalDist) / (1.35 * focalDist), vPerp / (1.05 * radius)));
+    float umbra = 1.0 - 0.62 * (1.0 - smoothstepCpu(0.45, 1.15, ellR));
+    float inDownstream = smoothstepCpu(0.08, 0.32, uN) * (1.0 - smoothstepCpu(1.65, 2.35, uN));
+    if (inDownstream <= 1e-6) return vec4(0.0, 0.0, 0.0, umbra);
+
+    float envelopeW = max(0.08, 0.78 * sqrt(clamp(1.55 - uN * 0.72, 0.0, 2.0)));
+    float edgeDist = abs(abs(vN) - envelopeW * 0.68);
+    float edNorm = edgeDist / 0.14;
+    float causticArc = exp(-edNorm * edNorm) * inDownstream;
+    float cuX = (uN - 1.02) / 0.28;
+    float cuY = vN / 0.24;
+    float cuspFocus = exp(-(cuX * cuX + cuY * cuY)) * 1.85;
+    float stY = vN / (envelopeW + 0.15);
+    float striation = (0.55 + 0.45 * cos(uN * 18.0 - vN * vN * 6.5)) * exp(-stY * stY) * inDownstream;
+    float doY = (abs(vN) - envelopeW * 0.76) / 0.09;
+    float dispOuter = exp(-doY * doY) * inDownstream;
+
+    float coreW = causticArc + cuspFocus;
+    float bodyW = striation * 0.55;
+    float dispW = dispOuter * 0.45;
+    vec3 cCol = (coreW * tc + bodyW * tb + dispW * vec3(1.55, 0.95, 0.35)) * intensity;
+    return vec4(cCol, umbra);
+  }
+
+  vec3 evalSconceLight(vec3 p, vec3 n, vec3 v, float nDotVSky, vec3 alb, float rgh, vec3 f0, float met, vec3 scPos, vec3 scRad, float attBase, float attScale, float coneLow, float coneHigh) {
+    vec3 ts = scPos - p;
+    float dist2 = max(dot(ts, ts), 0.015);
+    float distSc = sqrt(dist2);
+    vec3 ds = ts / distSc;
+    float attSc = 1.0 / (attBase + attScale * dist2);
+    float coneSc = smoothstepCpu(coneLow, coneHigh, -ds.y);
+    float scWeight = attSc * coneSc;
+    if (scWeight <= 1e-5) return vec3(0.0);
+
+    vec3 scH = normalize(v + ds);
+    float nDotLSc = saturate(dot(n, ds));
+    float nDotHSc = saturate(dot(n, scH));
+    float vDotHSc = saturate(dot(v, scH));
+    float dSc = ggxIsotropicD(nDotHSc, rgh);
+    float gSc = smithGgxG(nDotVSky, nDotLSc, rgh);
+    vec3 fSc = vec3(
+      schlickFresnelScalar(vDotHSc, f0.r),
+      schlickFresnelScalar(vDotHSc, f0.g),
+      schlickFresnelScalar(vDotHSc, f0.b)
+    );
+    float specScBase = dSc * gSc * nDotLSc;
+    float diffScScale = (1.0 - met) * INV_PI * nDotLSc;
+    return ((vec3(1.0) - fSc) * diffScScale * alb + specScBase * fSc) * scRad * scWeight;
+  }
+
+  vec3 shadeSurfaceScalar(RayHit hit, vec3 rd, bool isSecondary) {
+    int matId = hit.matId;
+    vec3 p = hit.p;
+    vec3 n = hit.n;
+    vec3 v = -rd;
+
+    if (matId == MAT_WINDOW_GLASS) {
+      vec3 ext = evaluateExteriorCourtyardScalar(p, rd);
+      float cosV = saturate(dot(n, v));
+      float fGlass = dielectricFresnelExact(cosV, 1.0, 1.52);
+      float trans = 1.0 - 0.85 * fGlass;
+      return ext * trans + fGlass * vec3(0.42, 0.30, 0.18);
+    }
+    if (matId == MAT_SCONCE_BULB) {
+      return u_sconceBulbEmit;
+    }
+
+    vec3 alb = hit.albedo;
+    float rgh = hit.rough;
+    vec3 f0 = hit.f0;
+    float met = hit.metallic;
+
+    float ao = computeAnalyticAoScalar(p, n.y, matId);
+    float sunVis = evaluateWindowSunTransmissionScalar(p);
+    float sunVisEff = sunVis;
+    vec3 caust = vec3(0.0);
+
+    if (!isSecondary && (matId == MAT_COFFEE_TABLE_TOP || matId == MAT_OPEN_BOOK_PAGE || matId == MAT_OPEN_BOOK_COVER || matId == MAT_SILK_RIBBON) && n.y > 0.5) {
+      float fStretch = clamp(0.295 / max(u_sunDir.y, 0.14), 0.78, 1.48);
+      vec4 c1 = vesselCausticPatternScalar(p.xz, u_bookCarafePos.zw, 0.088, 0.22 * fStretch, vec3(5.8, 16.5, 6.8), vec3(3.8, 10.8, 4.4), 1.18);
+      vec4 c2 = vesselCausticPatternScalar(p.xz, u_tumblerPos, 0.045, 0.14 * fStretch, vec3(17.2, 16.8, 16.2), vec3(9.8, 9.6, 9.2), 1.12);
+      sunVisEff = sunVis * c1.w * c2.w;
+      caust = alb * (c1.rgb + c2.rgb) * (sunVis * INV_PI);
+    }
+
+    vec3 direct = vec3(0.0);
+    if (sunVisEff > 1e-6) {
+      vec3 h = normalize(v + u_sunDir);
+      float nDotL = saturate(dot(n, u_sunDir));
+      float nDotV = clamp(dot(n, v), 1e-4, 1.0);
+      float nDotH = saturate(dot(n, h));
+      float vDotH = saturate(dot(v, h));
+
+      float dTerm = ggxIsotropicD(nDotH, rgh);
+      float gTerm = smithGgxG(nDotV, nDotL, rgh);
+      vec3 f = vec3(
+        schlickFresnelScalar(vDotH, f0.r),
+        schlickFresnelScalar(vDotH, f0.g),
+        schlickFresnelScalar(vDotH, f0.b)
+      );
+      float specBase = dTerm * gTerm * nDotL;
+      float oneMinusMet = (1.0 - met) * INV_PI * nDotL;
+      vec3 tot = (vec3(1.0) - f) * oneMinusMet * alb + specBase * f;
+      direct = tot * u_sunRadiance * sunVisEff;
+
+      if (matId == MAT_EUCALYPTUS_LEAF) {
+        float backlit = saturate(-dot(n, u_sunDir));
+        direct += backlit * sunVisEff * vec3(1.65, 2.45, 0.95);
+      } else if (matId == MAT_LEATHER_CHAIR) {
+        float rawNL = dot(n, u_sunDir);
+        float nDotLCh = saturate(rawNL);
+        float wrapLth = saturate((rawNL + 0.35) / 1.35);
+        float sssW = (wrapLth - nDotLCh) * sunVisEff;
+        direct += sssW * vec3(1.25, 0.38, 0.08);
+      }
+    }
+    if (matId == MAT_BOUCLE_RUG || matId == MAT_RUG_LINEN_BORDER || matId == MAT_BOOK_SPINE) {
+      float cosNvTx = saturate(dot(n, v));
+      float cosNlTx = saturate(dot(n, u_sunDir));
+      float grazingFiber = pow(1.0 - cosNvTx, 3.2) * (0.25 + 0.75 * cosNlTx);
+      vec3 sheenTint = (matId == MAT_BOOK_SPINE) ? (alb * 0.55 + 0.12) : vec3(0.86, 0.80, 0.70);
+      direct += grazingFiber * sheenTint * (0.28 + 0.72 * sunVisEff);
+    }
+
+    float distRightWin = max(u_roomXRight - p.x, 0.35);
+    vec3 sr = normalize(vec3(0.86, 0.36 - 0.07 * p.y, 0.22 - 0.03 * p.z));
+    float formRight = (1.0 / (1.0 + 0.11 * distRightWin * distRightWin)) * (0.45 + 0.55 * saturate(dot(n, sr)));
+
+    float backWinCenterX = 0.5 * (u_backConcreteXMax + u_roomXRight) + 0.01;
+    float distBackWin = length(vec2(max(p.x - backWinCenterX, 0.0), max(u_roomZBack - p.z, 0.45)));
+    vec3 sb = normalize(vec3((backWinCenterX - p.x) * 0.25, 0.28 - 0.05 * p.y, 1.0));
+    float formBack = (0.65 / (1.0 + 0.10 * distBackWin * distBackWin)) * (0.35 + 0.65 * saturate(dot(n, sb)));
+
+    float skyIrrScale = 1.0 - 0.18 * u_duskFactor + 0.12 * u_highSunFactor;
+    vec3 skyIrr = vec3(
+      (formRight * 0.82 + formBack * 0.68) * ao * (skyIrrScale + 0.10 * u_duskFactor),
+      (formRight * 1.02 + formBack * 0.84) * ao * skyIrrScale,
+      (formRight * 1.38 + formBack * 1.12) * ao * (skyIrrScale - 0.08 * u_duskFactor)
+    );
+
+    vec3 sh = normalize(v + sr);
+    float nDotLSky = saturate(dot(n, sr));
+    float nDotVSky = clamp(dot(n, v), 1e-4, 1.0);
+    float nDotHSky = saturate(dot(n, sh));
+    float vDotHSky = saturate(dot(v, sh));
+    float skyRgh = max(rgh, 0.28);
+    float dSky = ggxIsotropicD(nDotHSky, skyRgh);
+    float gSky = smithGgxG(nDotVSky, nDotLSky, skyRgh);
+    vec3 fSky = vec3(
+      schlickFresnelScalar(vDotHSky, f0.r),
+      schlickFresnelScalar(vDotHSky, f0.g),
+      schlickFresnelScalar(vDotHSky, f0.b)
+    );
+    float specSkyBase = 0.42 * dSky * gSky * nDotLSky;
+    float diffSkyScale = (1.0 - met) * nDotLSky;
+    vec3 sky = ((vec3(1.0) - fSky) * diffSkyScale * alb + specSkyBase * fSky) * skyIrr;
+
+    vec3 tf = vec3((0.15 + 0.5 * u_tableParams.x) - p.x, -p.y, 2.85 - p.z);
+    float distFlPatch = sqrt(max(dot(tf, tf), 0.12));
+    vec3 df = tf / distFlPatch;
+    float cosFlRec = saturate(dot(n, df));
+    float cosFlEmit = saturate(-df.y);
+    float formFlBounce = (cosFlRec * cosFlEmit) / (1.4 + 0.16 * distFlPatch * distFlPatch);
+    float hemiBounce = 0.35 + 0.65 * saturate(0.5 - 0.5 * n.y);
+    float flW = formFlBounce * 1.45 + hemiBounce * 0.28;
+
+    float distWalnut = max(p.x - (-2.75 + u_leftWallShiftX), 0.35);
+    float cosWalRec = saturate(-n.x * 0.75 + 0.25);
+    float walW = cosWalRec / (1.2 + 0.28 * distWalnut * distWalnut);
+
+    float indScale = ao * INV_PI;
+    vec3 ind = alb * vec3(
+      flW * (1.52 + 0.24 * u_duskFactor) + walW * 0.62 + 0.24,
+      flW * (0.96 - 0.04 * u_duskFactor) + walW * 0.32 + 0.22,
+      flW * (0.52 - 0.10 * u_duskFactor) + walW * 0.15 + 0.20
+    ) * indScale;
+
+    float credDx = u_benchParams.x + 0.85;
+    float bScaleX = u_benchParams.y / 1.70;
+    float duskBoost = 1.0 + 1.15 * u_duskFactor;
+
+    vec3 sc = evalSconceLight(
+      p, n, v, nDotVSky, alb, rgh, f0, met,
+      u_sconcePos, u_sconceRadiance,
+      0.28, 1.15 - 0.32 * u_duskFactor, -0.65, 0.35 + 0.20 * u_duskFactor
+    );
+
+    float picCenterX = -1.58 * bScaleX + credDx;
+    float picClampedX = clamp(p.x, picCenterX - 0.21 * bScaleX, picCenterX + 0.21 * bScaleX);
+    vec3 toPic = vec3(picClampedX - p.x, 1.918 - p.y, 7.00 - p.z);
+    float distPic2 = max(dot(toPic, toPic), 0.025);
+    float distPic = sqrt(distPic2);
+    vec3 dirPic = toPic / distPic;
+    float belowPic = 1.0 - smoothstepCpu(1.895, 1.932, p.y);
+    float latPic = abs(p.x - picCenterX);
+    float horizWash = 1.0 - smoothstepCpu(0.34, 0.92, latPic);
+    float conePic = (
+      smoothstepCpu(0.06, 0.58, dirPic.y) * belowPic * (0.28 + 0.72 * horizWash)
+      + 0.03 * smoothstepCpu(-0.40, 0.12, dirPic.y) * (1.0 - belowPic) * horizWash
+    );
+    float wPic = conePic / (0.18 + 1.05 * distPic2);
+    if (wPic > 1e-5) {
+      vec3 hPic = normalize(v + dirPic);
+      float nDotLPic = saturate(dot(n, dirPic));
+      float nDotHPic = saturate(dot(n, hPic));
+      float vDotHPic = saturate(dot(v, hPic));
+      float dPic = ggxIsotropicD(nDotHPic, rgh);
+      float gPic = smithGgxG(nDotVSky, nDotLPic, rgh);
+      vec3 fPic = vec3(
+        schlickFresnelScalar(vDotHPic, f0.r),
+        schlickFresnelScalar(vDotHPic, f0.g),
+        schlickFresnelScalar(vDotHPic, f0.b)
+      );
+      vec3 picRad = vec3(10.40, 6.85, 3.12) * duskBoost;
+      sc += ((vec3(1.0) - fPic) * ((1.0 - met) * INV_PI * nDotLPic) * alb + (dPic * gPic * nDotLPic) * fPic) * picRad * wPic;
+    }
+
+    vec3 toDl = vec3(0.25 * bScaleX + credDx - p.x, 1.842 - p.y, 7.06 - p.z);
+    float distDl2 = max(dot(toDl, toDl), 0.025);
+    float distDl = sqrt(distDl2);
+    vec3 dirDl = toDl / distDl;
+    float belowDl = 1.0 - smoothstepCpu(1.815, 1.852, p.y);
+    float coneDl = (
+      smoothstepCpu(0.28, 0.78, dirDl.y) * belowDl
+      + 0.03 * smoothstepCpu(-0.40, 0.12, dirDl.y) * (1.0 - belowDl)
+    );
+    float wDl = coneDl / (0.20 + 1.25 * distDl2);
+    if (wDl > 1e-5) {
+      vec3 hDl = normalize(v + dirDl);
+      float nDotLDl = saturate(dot(n, dirDl));
+      float nDotHDl = saturate(dot(n, hDl));
+      float vDotHDl = saturate(dot(v, hDl));
+      float dDl = ggxIsotropicD(nDotHDl, rgh);
+      float gDl = smithGgxG(nDotVSky, nDotLDl, rgh);
+      vec3 fDl = vec3(
+        schlickFresnelScalar(vDotHDl, f0.r),
+        schlickFresnelScalar(vDotHDl, f0.g),
+        schlickFresnelScalar(vDotHDl, f0.b)
+      );
+      vec3 dlRad = vec3(8.40, 5.48, 2.48) * duskBoost;
+      sc += ((vec3(1.0) - fDl) * ((1.0 - met) * INV_PI * nDotLDl) * alb + (dDl * gDl * nDotLDl) * fDl) * dlRad * wDl;
+    }
+
+    if (p.x < -2.745 + u_leftWallShiftX) {
+      float shelfGrazing = max(0.0, (-2.745 + u_leftWallShiftX - p.x) / 0.38);
+      sc += alb * vec3(0.28, 0.19, 0.11) * shelfGrazing;
+    }
+
+    return direct + caust + sky + ind + sc;
+  }
+
+  vec3 computeCameraRayDir(float xPx, float yPx) {
+    float aspectInv = u_res.y / u_res.x;
+    float uu = -1.0 + (2.0 * xPx) / max(u_res.x - 1.0, 1.0);
+    float vv = aspectInv - (2.0 * aspectInv * yPx) / max(u_res.y - 1.0, 1.0) + u_camVShift;
+    float uScaled = uu * u_camFovScale;
+    float vScaled = vv * u_camFovScale;
+    float snYaw = sin(u_camYawRad), csYaw = cos(u_camYawRad);
+    vec3 fwd = vec3(snYaw, 0.0, csYaw);
+    vec3 right = vec3(csYaw, 0.0, -snYaw);
+    vec3 up = vec3(0.0, 1.0, 0.0);
+    return normalize(fwd + uScaled * right + vScaled * up);
+  }
+  `;
+
+  const GLSL_SCENE_RAYTRACER = `
+  RayHit traceSingleRay(vec3 ro, vec3 rd, bool includeGlassVessels) {
+    float tBest = 1e9;
+    vec3 nb = vec3(0.0, 1.0, 0.0);
+    int matBest = 0;
+    vec3 alb = vec3(0.0);
+    float roughBest = 0.5;
+    vec3 f0 = vec3(0.04);
+    float metalBest = 0.0;
+    vec2 uvBest = vec2(0.0);
+
+    vec3 safeD = vec3(
+      abs(rd.x) < 1e-12 ? (rd.x < 0.0 ? -1e-12 : 1e-12) : rd.x,
+      abs(rd.y) < 1e-12 ? (rd.y < 0.0 ? -1e-12 : 1e-12) : rd.y,
+      abs(rd.z) < 1e-12 ? (rd.z < 0.0 ? -1e-12 : 1e-12) : rd.z
+    );
+    vec3 invD = 1.0 / safeD;
+
+    if (rd.y < -1e-6) {
+      float tFloor = (u_roomYFloor - ro.y) * invD.y;
+      if (tFloor > 1e-4 && tFloor < tBest) {
+        tBest = tFloor;
+        nb = vec3(0.0, 1.0, 0.0);
+        matBest = MAT_FLOOR_OAK;
+      }
+    }
+
+    if (rd.y > 1e-6) {
+      float tCeil = (u_roomYCeil - ro.y) * invD.y;
+      if (tCeil > 1e-4 && tCeil < tBest) {
+        tBest = tCeil;
+        nb = vec3(0.0, -1.0, 0.0);
+        matBest = MAT_CEILING_CONCRETE;
+      }
+    }
+
+#ifndef FAST_SECONDARY_PASS
+    if (rd.y > 0.01 && ro.y < u_roomYCeil) {
+      float beamCy = u_roomYCeil - 0.16;
+      float beamCx = 0.5 * (u_roomXLeft + u_roomXRight) + 0.20;
+      float beamEx = 0.5 * (u_roomXRight - u_roomXLeft) - 0.20;
+      const float ceilBeamsZ[3] = float[3](1.65, 3.55, 5.50);
+      for (int i = 0; i < 3; i++) {
+        HitOut res = intersectRoundedBoxScalar(ro, rd, vec3(beamCx, beamCy, ceilBeamsZ[i]), vec3(beamEx, 0.16, 0.095), 0.008);
+        if (res.hit && res.t < tBest) {
+          tBest = res.t;
+          nb = res.n;
+          matBest = MAT_CEILING_CONCRETE;
+        }
+      }
+    }
+#endif
+
+    if (rd.z > 1e-6) {
+      float tBack = (u_roomZBack - ro.z) * invD.z;
+      if (tBack > 1e-4 && tBack < tBest) {
+        float bx = ro.x + tBack * rd.x;
+        float by = ro.y + tBack * rd.y;
+        tBest = tBack;
+        nb = vec3(0.0, 0.0, -1.0);
+        bool isBackWin = bx > u_backConcreteXMax && bx < u_roomXRight && by > 0.09 && by < u_windowTopY;
+        if (isBackWin) {
+          float dM = 10.0;
+          for (int i = 0; i < 4; i++) {
+            if (i >= u_numBackMullions) break;
+            dM = min(dM, abs(bx - u_backMullionX[i]));
+          }
+          float dT = 10.0;
+          for (int i = 0; i < 4; i++) {
+            dT = min(dT, abs(by - u_rightTransomY[i]));
+          }
+          if (u_numRightTransoms > 4) dT = min(dT, abs(by - u_rightTransomY4));
+          matBest = (dM < 0.038 || dT < 0.030) ? MAT_STEEL_MULLION : MAT_WINDOW_GLASS;
+        } else {
+          matBest = MAT_BACK_CONCRETE;
+        }
+      }
+    }
+
+    if (rd.x > 1e-6) {
+      float tRight = (u_roomXRight - ro.x) * invD.x;
+      if (tRight > 1e-4 && tRight < tBest) {
+        float ry = ro.y + tRight * rd.y;
+        float rz = ro.z + tRight * rd.z;
+        tBest = tRight;
+        nb = vec3(-1.0, 0.0, 0.0);
+        bool isRightOpen = ry > 0.09 && ry < u_windowTopY && rz > -0.20 && rz < 7.52;
+        if (isRightOpen) {
+          const float rightMullZ[5] = float[5](-0.20, 1.65, 3.55, 5.50, 7.52);
+          float dM = 10.0;
+          for (int i = 0; i < 5; i++) dM = min(dM, abs(rz - rightMullZ[i]));
+          float dT = 10.0;
+          for (int i = 0; i < 4; i++) dT = min(dT, abs(ry - u_rightTransomY[i]));
+          if (u_numRightTransoms > 4) dT = min(dT, abs(ry - u_rightTransomY4));
+          matBest = (dM < 0.042 || dT < 0.032) ? MAT_STEEL_MULLION : MAT_WINDOW_GLASS;
+        } else {
+          matBest = MAT_BACK_CONCRETE;
+        }
+      }
+    }
+
+    if (rd.x < -1e-6) {
+      float tLeftBack = (u_roomXLeft - ro.x) * invD.x;
+      if (tLeftBack > 1e-4 && tLeftBack < tBest) {
+        tBest = tLeftBack;
+        nb = vec3(1.0, 0.0, 0.0);
+        matBest = MAT_WALNUT_CASEWORK;
+      }
+    }
+
+    if (rd.y < -1e-4 && ro.y > 0.01) {
+      vec3 rugC = vec3(0.5 * (u_rugX.x + u_rugX.y), 0.0085, 2.20 + 0.5 * u_tableParams.y);
+      vec3 rugExt = vec3(0.5 * (u_rugX.y - u_rugX.x), 0.0085, 1.72);
+      HitOut hRug = intersectRoundedBoxScalar(ro, rd, rugC, rugExt, 0.006);
+      if (hRug.hit && hRug.t < tBest) {
+        vec3 pRug = ro + hRug.t * rd;
+        float dxEdge = rugExt.x - abs(pRug.x - rugC.x);
+        float dzEdge = rugExt.z - abs(pRug.z - rugC.z);
+        bool onLinenBorder = min(dxEdge, dzEdge) < 0.046;
+        tBest = hRug.t;
+        nb = hRug.n;
+        matBest = onLinenBorder ? MAT_RUG_LINEN_BORDER : MAT_BOUCLE_RUG;
+      }
+    }
+
+    float lwShift = u_leftWallShiftX;
+    float caseFrontX = -2.72 + lwShift;
+    const float shelfY[10] = float[10](0.08, 0.66, 1.22, 1.78, 2.34, 2.90, 3.46, 4.02, 4.58, 5.14);
+    const float stileZ[6] = float[6](-0.80, 0.90, 2.55, 4.25, 5.92, 7.58);
+    const float shelfThick = 0.042;
+    const float stileThick = 0.052;
+
+    if (rd.x < -1e-6) {
+      float tCase = (caseFrontX - ro.x) * invD.x;
+      if (tCase > 1e-4 && tCase < tBest + 0.4) {
+        float cyHit = ro.y + tCase * rd.y;
+        float czHit = ro.z + tCase * rd.z;
+        if (cyHit >= 0.0 && cyHit <= u_roomYCeil && czHit >= -0.85 && czHit <= u_roomZBack) {
+          float distShelfFace = 10.0;
+          float halfSh = 0.5 * shelfThick;
+          float topActiveShelfY = 4.02;
+          for (int i = 0; i < 10; i++) {
+            if (shelfY[i] <= u_roomYCeil - 0.15) {
+              topActiveShelfY = shelfY[i];
+              distShelfFace = min(distShelfFace, abs(cyHit - (shelfY[i] + halfSh)));
+            }
+          }
+          bool onShelfFront = distShelfFace <= halfSh || cyHit < 0.08 + shelfThick || cyHit > topActiveShelfY;
+          float distStileFace = 10.0;
+          for (int i = 0; i < 6; i++) distStileFace = min(distStileFace, abs(czHit - stileZ[i]));
+          bool onStileFront = distStileFace <= 0.5 * stileThick;
+
+          if (onShelfFront || onStileFront) {
+            if (tCase < tBest) {
+              tBest = tCase;
+              nb = vec3(1.0, 0.0, 0.0);
+              matBest = MAT_WALNUT_CASEWORK;
+            }
+          } else {
+#ifndef FAST_SECONDARY_PASS
+            for (int i = 0; i < 10; i++) {
+              float sy = shelfY[i];
+              if (sy > u_roomYCeil - 0.10) break;
+              float yTop = sy + shelfThick;
+              if (rd.y < -1e-6) {
+                float tShTop = (yTop - ro.y) * invD.y;
+                if (tShTop > tCase && tShTop < tBest) {
+                  float hx = ro.x + tShTop * rd.x;
+                  float hz = ro.z + tShTop * rd.z;
+                  if (hx >= u_roomXLeft && hx <= caseFrontX && hz >= -0.85 && hz <= u_roomZBack) {
+                    tBest = tShTop;
+                    nb = vec3(0.0, 1.0, 0.0);
+                    matBest = MAT_WALNUT_CASEWORK;
+                  }
+                }
+              }
+              if (rd.y > 1e-6) {
+                float tShBot = (sy - ro.y) * invD.y;
+                if (tShBot > tCase && tShBot < tBest) {
+                  float hxB = ro.x + tShBot * rd.x;
+                  float hzB = ro.z + tShBot * rd.z;
+                  if (hxB >= u_roomXLeft && hxB <= caseFrontX && hzB >= -0.85 && hzB <= u_roomZBack) {
+                    tBest = tShBot;
+                    nb = vec3(0.0, -1.0, 0.0);
+                    matBest = MAT_WALNUT_CASEWORK;
+                  }
+                }
+              }
+            }
+            for (int i = 0; i < 6; i++) {
+              float sz = stileZ[i];
+              for (int s = -1; s <= 1; s += 2) {
+                float fs = float(s);
+                if (rd.z * fs < -1e-6) {
+                  float zPlane = sz + fs * 0.5 * stileThick;
+                  float tSt = (zPlane - ro.z) * invD.z;
+                  if (tSt > tCase && tSt < tBest) {
+                    float hxS = ro.x + tSt * rd.x;
+                    float hyS = ro.y + tSt * rd.y;
+                    if (hxS >= u_roomXLeft && hxS <= caseFrontX && hyS >= 0.0 && hyS <= u_roomYCeil) {
+                      tBest = tSt;
+                      nb = vec3(0.0, 0.0, fs);
+                      matBest = MAT_WALNUT_CASEWORK;
+                    }
+                  }
+                }
+              }
+            }
+#endif
+
+            float tProbe = ((-2.785 + lwShift) - ro.x) * invD.x;
+            float pyProbe = ro.y + tProbe * rd.y;
+            float pzProbe = ro.z + tProbe * rd.z;
+
+            int tierIdx = -1;
+            for (int i = 0; i < 9; i++) {
+              if (pyProbe >= shelfY[i] && pyProbe < shelfY[i + 1]) {
+                tierIdx = i;
+                break;
+              }
+            }
+            int tClamped = clamp(tierIdx, 0, 8);
+            int bIdx = clamp(int(floor(((pzProbe - (-0.80)) / (7.58 - (-0.80))) * 4190.0)), 0, 4189);
+            float bxFront = texelFetch(u_bookMetaTex, ivec2(bIdx, tClamped), 0).b + lwShift;
+            float tBookFront = (bxFront - ro.x) * invD.x;
+            float byBook = ro.y + tBookFront * rd.y;
+            float bzBook = ro.z + tBookFront * rd.z;
+
+            int tierIdx2 = -1;
+            for (int i = 0; i < 9; i++) {
+              if (byBook >= shelfY[i] && byBook < shelfY[i + 1]) {
+                tierIdx2 = i;
+                break;
+              }
+            }
+            int tC2 = clamp(tierIdx2, 0, 8);
+            int bI2 = clamp(int(floor(((bzBook - (-0.80)) / (7.58 - (-0.80))) * 4190.0)), 0, 4189);
+            vec4 bMeta = texelFetch(u_bookMetaTex, ivec2(bI2, tC2), 0);
+            bool present = (bMeta.r > 0.5) && (tierIdx2 >= 0) && (tierIdx2 < 9);
+            float shelfBaseY = shelfY[tC2] + shelfThick;
+            float bH = bMeta.g;
+            float relY = byBook - shelfBaseY;
+
+            if (present && relY >= 0.0 && relY <= bH && tBookFront > 1e-4 && tBookFront < tBest) {
+              float uSp = bMeta.a;
+              float nzSp = 0.48 * uSp;
+              float nySp = relY > bH - 0.012 ? 0.35 : (relY < 0.012 ? -0.35 : 0.0);
+              float nxSp = sqrt(max(0.1, 1.0 - nzSp * nzSp - nySp * nySp));
+              float dCrease = (abs(uSp) - 0.82) / 0.09;
+              float crease = 1.0 - 0.32 * exp(-dCrease * dCrease);
+
+              vec4 bColR = texelFetch(u_bookColTex, ivec2(bI2, tC2), 0);
+              vec4 bBand = texelFetch(u_bookBandTex, ivec2(bI2, tC2), 0);
+              float bBandY1 = texelFetch(u_bookBand2Tex, ivec2(bI2, tC2), 0).r;
+
+              bool inBand = (relY >= bBand.a) && (relY <= bBandY1) && (abs(uSp) < 0.68);
+              tBest = tBookFront;
+              nb = normalize(vec3(nxSp, nySp, nzSp));
+              matBest = MAT_BOOK_SPINE;
+              if (inBand) {
+                alb = bBand.rgb;
+                roughBest = 0.22;
+              } else {
+                alb = bColR.rgb * crease;
+                roughBest = bColR.a;
+              }
+            }
+
+#ifndef FAST_SECONDARY_PASS
+            if (rd.y < -1e-5) {
+              float yBookTop = shelfBaseY + bH;
+              float tBookTop = (yBookTop - ro.y) * invD.y;
+              if (tBookTop > tCase && tBookTop < tBest) {
+                float txBt = ro.x + tBookTop * rd.x;
+                float tzBt = ro.z + tBookTop * rd.z;
+                int bITop = clamp(int(floor(((tzBt - (-0.80)) / (7.58 - (-0.80))) * 4190.0)), 0, 4189);
+                vec4 topMeta = texelFetch(u_bookMetaTex, ivec2(bITop, tC2), 0);
+                if (topMeta.r > 0.5 && txBt >= u_roomXLeft && txBt <= topMeta.b + lwShift) {
+                  tBest = tBookTop;
+                  nb = vec3(0.0, 1.0, 0.0);
+                  matBest = MAT_BOOK_PAGES;
+                  alb = vec3(0.62, 0.57, 0.48);
+                  roughBest = 0.65;
+                }
+              }
+            }
+
+            for (int v = 0; v < 5; v++) {
+              vec4 vp = u_vesselPosR0[v];
+              if (vp.y > u_roomYCeil - 0.15) continue;
+              vec3 vrr = u_vesselRyRzRough[v];
+              HitOut res = intersectEllipsoidScalar(ro, rd, vec3(vp.x + lwShift, vp.y, vp.z), vec3(vp.w, vrr.x, vrr.y), 0.0);
+              if (res.hit && res.t < tBest) {
+                tBest = res.t;
+                nb = res.n;
+                matBest = MAT_CERAMIC_VESSEL;
+                alb = u_vesselCol[v];
+                roughBest = vrr.z;
+              }
+            }
+#endif
+          }
+        }
+      }
+    }
+
+    if (rayHitsSphereScalar(ro, rd, vec3(-2.78 + lwShift, 2.28, 3.55), 0.36, tBest)) {
+      HitOut res = intersectCylinderSegmentScalar(ro, rd, vec3(-3.08 + lwShift, 2.34, 3.55), vec3(-2.58 + lwShift, 2.34, 3.55), 0.016, true);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_BRASS_SCONCE;
+      }
+      res = intersectCylinderSegmentScalar(ro, rd, vec3(-2.60 + lwShift, 2.38, 3.55), vec3(-2.54 + lwShift, 2.22, 3.55), 0.058, true);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_BRASS_SCONCE;
+      }
+      res = intersectEllipsoidScalar(ro, rd, vec3(-2.54 + lwShift, 2.20, 3.55), vec3(0.042), 0.0);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_SCONCE_BULB;
+      }
+    }
+
+    float credDx = u_benchParams.x + 0.85;
+    float bScaleX = u_benchParams.y / 1.70;
+#ifndef FAST_SECONDARY_PASS
+    if (rayHitsSphereScalar(ro, rd, vec3(-1.58 * bScaleX + credDx, 1.96, 7.20), 0.36, tBest)) {
+      HitOut res = intersectCylinderSegmentScalar(
+        ro, rd,
+        vec3((-1.58 - 0.25 * bScaleX) + credDx, 1.96, 7.20),
+        vec3((-1.58 + 0.25 * bScaleX) + credDx, 1.96, 7.20),
+        0.021, true
+      );
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_BRASS_SCONCE;
+      }
+      res = intersectCylinderSegmentScalar(
+        ro, rd,
+        vec3(-1.58 * bScaleX + credDx, 1.96, 7.20),
+        vec3(-1.58 * bScaleX + credDx, 1.96, u_roomZBack),
+        0.013, false
+      );
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_BRASS_SCONCE;
+      }
+      res = intersectEllipsoidScalar(ro, rd, vec3(-1.58 * bScaleX + credDx, 1.941, 7.20), vec3(0.21 * bScaleX, 0.011, 0.014), 0.0);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_SCONCE_BULB;
+      }
+    }
+
+    if (rayHitsSphereScalar(ro, rd, vec3(0.25 * bScaleX + credDx, 1.93, 7.24), 0.22, tBest)) {
+      HitOut res = intersectCylinderSegmentScalar(
+        ro, rd,
+        vec3(0.25 * bScaleX + credDx, 1.84, 7.24),
+        vec3(0.25 * bScaleX + credDx, 2.02, 7.24),
+        0.056, true
+      );
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_BRASS_SCONCE;
+      }
+      res = intersectEllipsoidScalar(ro, rd, vec3(0.25 * bScaleX + credDx, 1.838, 7.24), vec3(0.046, 0.012, 0.046), 0.0);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_SCONCE_BULB;
+      }
+    }
+#endif
+
+    if (rayHitsSphereScalar(ro, rd, vec3(u_benchParams.x, 0.68, 7.22), u_benchParams.y + 0.48, tBest)) {
+      HitOut res = intersectRoundedBoxScalar(ro, rd, vec3(u_benchParams.x, 0.5105, 7.22), vec3(u_benchParams.y, 0.0165, 0.35), 0.005);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_COFFEE_TABLE_TOP;
+      }
+      float cabHalfW = u_benchParams.y - 0.02;
+      res = intersectRoundedBoxScalar(ro, rd, vec3(u_benchParams.x, 0.290, 7.23), vec3(cabHalfW, 0.205, 0.33), 0.006);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_WALNUT_CASEWORK;
+        uvBest = vec2((res.l.x + cabHalfW) / max(0.2, 2.0 * cabHalfW), res.l.z);
+      }
+      float legXs[2] = float[2](u_benchParams.z, u_benchParams.w);
+      for (int i = 0; i < 2; i++) {
+        res = intersectCylinderSegmentScalar(ro, rd, vec3(legXs[i], 0.0, 6.96), vec3(legXs[i], 0.09, 6.96), 0.016, false);
+        if (res.hit && res.t < tBest) {
+          tBest = res.t; nb = res.n; matBest = MAT_BRASS_SCONCE;
+        }
+        res = intersectCylinderSegmentScalar(ro, rd, vec3(legXs[i], 0.0, 7.46), vec3(legXs[i], 0.09, 7.46), 0.016, false);
+        if (res.hit && res.t < tBest) {
+          tBest = res.t; nb = res.n; matBest = MAT_BRASS_SCONCE;
+        }
+      }
+#ifndef FAST_SECONDARY_PASS
+      for (int d = 1; d < 6; d += 2) {
+        float pullX = u_benchParams.x - cabHalfW + (float(d) * 2.0 * cabHalfW) / 6.0;
+        res = intersectCylinderSegmentScalar(ro, rd, vec3(pullX - 0.018, 0.24, 6.895), vec3(pullX - 0.018, 0.35, 6.895), 0.0075, true);
+        if (res.hit && res.t < tBest) { tBest = res.t; nb = res.n; matBest = MAT_BRASS_SCONCE; }
+        res = intersectCylinderSegmentScalar(ro, rd, vec3(pullX + 0.018, 0.24, 6.895), vec3(pullX + 0.018, 0.35, 6.895), 0.0075, true);
+        if (res.hit && res.t < tBest) { tBest = res.t; nb = res.n; matBest = MAT_BRASS_SCONCE; }
+      }
+
+      vec3 artCenter = vec3(-1.58 * bScaleX + credDx, 1.086, 7.24);
+      vec3 artExt = vec3(0.48 * bScaleX, 0.56, 0.022);
+      res = intersectRoundedBoxScalar(ro, rd, artCenter, artExt, 0.004);
+      if (res.hit && res.t < tBest) {
+        vec2 uvF = vec2(res.l.x / artExt.x, res.l.y / artExt.y);
+        tBest = res.t;
+        nb = res.n;
+        if (abs(uvF.x) > 0.895 || abs(uvF.y) > 0.905 || res.n.z > -0.45) {
+          matBest = MAT_WALNUT_CASEWORK;
+          uvBest = vec2(0.0);
+        } else {
+          matBest = MAT_ART_CANVAS;
+          uvBest = uvF / 0.895;
+        }
+      }
+
+      res = intersectRoundedBoxScalar(ro, rd, vec3(-0.52 * bScaleX + credDx, 0.543, 7.18), vec3(0.21, 0.016, 0.16), 0.003);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_OPEN_BOOK_COVER;
+      }
+      res = intersectRoundedBoxScalar(ro, rd, vec3(-0.52 * bScaleX + credDx, 0.575, 7.18), vec3(0.185, 0.016, 0.14), 0.003);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_TERRACOTTA_BOOK;
+        uvBest = vec2(res.l.x / 0.185, res.l.z / 0.14);
+      }
+
+      res = intersectEllipsoidScalar(ro, rd, vec3(0.22 * bScaleX + credDx, 0.681, 7.16), vec3(0.115, 0.155, 0.115), 0.0);
+      if (res.hit && res.t < tBest) {
+        float angV = atan(res.l.z, res.l.x);
+        float fluteV = cos(angV * 28.0);
+        tBest = res.t;
+        nb = normalize(res.n + 0.14 * sin(angV * 28.0) * vec3(-sin(angV), 0.0, cos(angV)));
+        matBest = MAT_CERAMIC_VESSEL;
+        alb = vec3(0.84, 0.81, 0.76) * (0.93 + 0.07 * fluteV);
+        roughBest = 0.28;
+      }
+
+      res = intersectEllipsoidScalar(ro, rd, vec3(0.46 * bScaleX + credDx, 0.588, 7.22), vec3(0.062), 0.0);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_BRASS_SCONCE;
+      }
+#endif
+    }
+
+    if (rayHitsSphereScalar(ro, rd, vec3(u_chairBase.x, 0.44, u_chairBase.z), 0.82, tBest)) {
+      HitOut res = intersectObbYScalar(ro, rd, u_chairSeatC, vec3(0.41, 0.068, 0.39), u_chairRot.x, 0.032, 0.14);
+      if (res.hit && res.t < tBest) {
+        float tuft = 0.12 * sin((res.l.x / 0.41) * PI) * cos((res.l.z / 0.39) * PI);
+        nb = normalize(vec3(res.n.x + tuft, res.n.y, res.n.z + tuft * 0.6));
+        tBest = res.t;
+        matBest = MAT_LEATHER_CHAIR;
+        uvBest = vec2(res.l.x / 0.41, res.l.z / 0.41);
+      }
+      res = intersectObbYScalar(ro, rd, u_chairBackC, vec3(0.40, 0.27, 0.068), u_chairRot.x, 0.034, 0.32);
+      if (res.hit && res.t < tBest) {
+        float tuftB = 0.14 * sin((res.l.x / 0.40) * PI) * sin((res.l.y / 0.27) * PI);
+        nb = normalize(vec3(res.n.x + tuftB, res.n.y + tuftB * 0.5, res.n.z));
+        tBest = res.t;
+        matBest = MAT_LEATHER_CHAIR;
+        uvBest = vec2(res.l.x / 0.40, res.l.y / 0.40);
+      }
+      res = intersectCylinderSegmentScalar(ro, rd, u_chairBolP0, u_chairBolP1, 0.072, true);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_LEATHER_CHAIR;
+      }
+#ifndef FAST_SECONDARY_PASS
+      for (int i = 0; i < 8; i++) {
+        res = intersectCylinderSegmentScalar(ro, rd, u_chairSteelA[i], u_chairSteelB[i], 0.015, true);
+        if (res.hit && res.t < tBest) {
+          tBest = res.t; nb = res.n; matBest = MAT_CHAIR_STEEL;
+        }
+        if (u_chairSteelA[i].y > 0.42 && u_chairSteelB[i].y > 0.42 && abs(u_chairSteelA[i].y - u_chairSteelB[i].y) < 0.08) {
+          vec3 padA = mix(u_chairSteelA[i], u_chairSteelB[i], 0.14);
+          vec3 padB = mix(u_chairSteelA[i], u_chairSteelB[i], 0.86);
+          res = intersectCylinderSegmentScalar(ro, rd, padA, padB, 0.025, true);
+          if (res.hit && res.t < tBest) {
+            tBest = res.t; nb = res.n; matBest = MAT_LEATHER_CHAIR; uvBest = vec2(0.0);
+          }
+        }
+      }
+#endif
+    }
+
+    float tabCx = 0.33 + u_tableParams.x;
+    float tabCz = 1.77 + u_tableParams.y;
+    float tabDx = u_tableParams.x;
+    float tabDz = u_tableParams.y;
+    if (rayHitsSphereScalar(ro, rd, vec3(tabCx, 0.24, tabCz), 1.05, tBest)) {
+      HitOut res = intersectRoundedBoxScalar(ro, rd, vec3(tabCx, 0.36, tabCz), vec3(u_tableParams.z, 0.030, 0.69), 0.008);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_COFFEE_TABLE_TOP;
+      }
+      res = intersectCylinderSegmentScalar(ro, rd, vec3(tabCx, 0.0, tabCz), vec3(tabCx, 0.334, tabCz), 0.315, true);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_COFFEE_TABLE_BASE;
+      }
+    }
+
+    vec2 openBookC = u_bookCarafePos.xy;
+    if (rayHitsSphereScalar(ro, rd, vec3(openBookC.x, 0.41, openBookC.y), 0.38, tBest)) {
+      const float bookYaw = -0.19;
+      HitOut res = intersectObbYScalar(ro, rd, vec3(openBookC.x, 0.396, openBookC.y), vec3(0.235, 0.006, 0.168), bookYaw, 0.002, 0.0);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_OPEN_BOOK_COVER;
+      }
+      res = intersectObbYScalar(ro, rd, vec3(openBookC.x, 0.408, openBookC.y), vec3(0.222, 0.010, 0.158), bookYaw, 0.003, 0.0);
+      if (res.hit && res.t < tBest) {
+        float uPg = res.l.x / 0.222;
+        float vPg = res.l.z / 0.158;
+        float sgnU = uPg >= 0.0 ? 1.0 : -1.0;
+        float slopeU = sgnU * (0.38 * exp(-abs(uPg) * 4.5) - 0.18 * abs(uPg));
+        float cyB = cos(bookYaw), syB = sin(bookYaw);
+        nb = normalize(vec3(res.n.x - cyB * slopeU, res.n.y, res.n.z + syB * slopeU));
+        tBest = res.t;
+        matBest = MAT_OPEN_BOOK_PAGE;
+        uvBest = vec2(uPg, vPg);
+      }
+#ifndef FAST_SECONDARY_PASS
+      res = intersectObbYScalar(ro, rd, vec3(openBookC.x + 0.016, 0.4195, openBookC.y - 0.085), vec3(0.0105, 0.0028, 0.092), bookYaw + 0.06, 0.001, 0.0);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_SILK_RIBBON;
+      }
+      res = intersectObbYScalar(ro, rd, vec3(openBookC.x + 0.032, 0.3925, openBookC.y - 0.215), vec3(0.0115, 0.0022, 0.056), bookYaw + 0.24, 0.001, 0.0);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_SILK_RIBBON;
+      }
+#endif
+    }
+
+#ifndef FAST_SECONDARY_PASS
+    if (rayHitsSphereScalar(ro, rd, vec3(-0.12 + tabDx, 0.425, 2.04 + tabDz), 0.29, tBest)) {
+      HitOut res = intersectRoundedBoxScalar(ro, rd, vec3(-0.12 + tabDx, 0.405, 2.04 + tabDz), vec3(0.162, 0.015, 0.218), 0.004);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_OPEN_BOOK_COVER;
+      }
+      res = intersectRoundedBoxScalar(ro, rd, vec3(-0.12 + tabDx, 0.436, 2.04 + tabDz), vec3(0.145, 0.016, 0.195), 0.004);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_TERRACOTTA_BOOK;
+        uvBest = vec2(res.l.x / 0.145, res.l.z / 0.195);
+      }
+    }
+
+    if (rayHitsSphereScalar(ro, rd, vec3(0.24 + tabDx, 0.435, 1.82 + tabDz), 0.135, tBest)) {
+      vec3 espBase = vec3(0.24 + tabDx, 0.390, 1.82 + tabDz);
+      HitOut res = intersectEllipsoidScalar(ro, rd, espBase + vec3(0.0, 0.010, 0.0), vec3(0.088, 0.0105, 0.088), 0.0);
+      if (res.hit && res.t < tBest) {
+        vec3 pSau = ro + res.t * rd;
+        vec2 sauR = pSau.xz - espBase.xz;
+        float rSau = length(sauR);
+        vec3 nSau = res.n;
+        if (nSau.y > 0.35 && rSau < 0.076) {
+          float dishSlope = -0.34 * (rSau / 0.076);
+          nSau = normalize(nSau + vec3(dishSlope * sauR.x / max(rSau, 1e-5), 0.0, dishSlope * sauR.y / max(rSau, 1e-5)));
+        }
+        tBest = res.t; nb = nSau; matBest = MAT_CERAMIC_VESSEL;
+        float spE = valueNoise2d(pSau.x * 180.0, pSau.z * 180.0 + pSau.y * 180.0, 929);
+        alb = vec3(0.62, 0.57, 0.49) * (0.90 + 0.18 * spE);
+        roughBest = 0.22;
+      }
+      res = intersectCylinderSegmentScalar(ro, rd, espBase + vec3(0.0, 0.010, 0.0), espBase + vec3(0.0, 0.092, 0.0), 0.053, true);
+      if (res.hit && res.t < tBest) {
+        vec3 pCup = ro + res.t * rd;
+        float rTop = length(pCup.xz - espBase.xz);
+        float rInner = 0.0455;
+        float yCoffee = espBase.y + 0.078;
+        if (res.n.y > 0.85 && rTop < rInner) {
+          float invRy = abs(rd.y) < 1e-6 ? -1e6 : 1.0 / rd.y;
+          float tMen = (yCoffee - ro.y) * invRy;
+          vec3 pMen = ro + tMen * rd;
+          vec2 menR = pMen.xz - espBase.xz;
+          float menLen = length(menR);
+          if (tMen > res.t && menLen <= rInner) {
+            float menLip = smoothstepCpu(rInner - 0.007, rInner, menLen) * 0.28;
+            tBest = tMen;
+            nb = normalize(vec3(-menLip * menR.x / max(menLen, 1e-5), 1.0, -menLip * menR.y / max(menLen, 1e-5)));
+            matBest = MAT_ESPRESSO_LIQUID;
+          } else {
+            vec2 ocIn = ro.xz - espBase.xz;
+            float aIn = max(dot(rd.xz, rd.xz), 1e-9);
+            float bIn = dot(ocIn, rd.xz);
+            float cIn = dot(ocIn, ocIn) - rInner * rInner;
+            float discIn = max(bIn * bIn - aIn * cIn, 0.0);
+            float tInWall = (-bIn + sqrt(discIn)) / aIn;
+            if (tInWall > res.t) {
+              vec3 pIn = ro + tInWall * rd;
+              tBest = tInWall;
+              nb = normalize(vec3(-(pIn.x - espBase.x), 0.0, -(pIn.z - espBase.z)));
+              matBest = MAT_CERAMIC_VESSEL;
+              float spE = valueNoise2d(pIn.x * 180.0, pIn.z * 180.0 + pIn.y * 180.0, 929);
+              alb = vec3(0.56, 0.51, 0.44) * (0.90 + 0.18 * spE);
+              roughBest = 0.24;
+            }
+          }
+        } else {
+          tBest = res.t; nb = res.n; matBest = MAT_CERAMIC_VESSEL;
+          float spE = valueNoise2d(pCup.x * 180.0, pCup.z * 180.0 + pCup.y * 180.0, 929);
+          alb = vec3(0.62, 0.57, 0.49) * (0.90 + 0.18 * spE);
+          roughBest = 0.22;
+        }
+      }
+      res = intersectEllipsoidScalar(ro, rd, espBase + vec3(-0.058, 0.052, -0.010), vec3(0.021, 0.027, 0.0085), 0.18);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_CERAMIC_VESSEL;
+        alb = vec3(0.62, 0.57, 0.49); roughBest = 0.22;
+      }
+      res = intersectCylinderSegmentScalar(ro, rd, espBase + vec3(0.030, 0.018, -0.062), espBase + vec3(0.086, 0.022, 0.044), 0.0038, true);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_BRASS_INLAY;
+      }
+      res = intersectEllipsoidScalar(ro, rd, espBase + vec3(0.030, 0.018, -0.062), vec3(0.013, 0.0040, 0.017), 0.48);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_BRASS_INLAY;
+      }
+    }
+#endif
+
+    vec3 carafeBase = vec3(u_bookCarafePos.z, 0.39, u_bookCarafePos.w);
+    vec3 vaseBase = vec3(0.44 + tabDx, 0.39, 1.98 + tabDz);
+    if (rayHitsSphereScalar(ro, rd, vec3(0.5 * (u_bookCarafePos.z + vaseBase.x), 0.65, 1.78 + tabDz), 0.62, tBest)) {
+#ifndef FAST_SECONDARY_PASS
+      HitOut resV = intersectEllipsoidScalar(ro, rd, vaseBase + vec3(0.0, 0.105, 0.0), vec3(0.088, 0.105, 0.088), 0.0);
+      if (resV.hit && resV.t < tBest) {
+        tBest = resV.t; nb = resV.n; matBest = MAT_CERAMIC_VESSEL;
+        alb = vec3(0.47, 0.44, 0.40); roughBest = 0.38;
+      }
+      resV = intersectCylinderSegmentScalar(ro, rd, vaseBase + vec3(0.0, 0.175, 0.0), vaseBase + vec3(0.0, 0.255, 0.0), 0.044, true);
+      if (resV.hit && resV.t < tBest) {
+        tBest = resV.t; nb = resV.n; matBest = MAT_CERAMIC_VESSEL;
+        alb = vec3(0.47, 0.44, 0.40); roughBest = 0.38;
+      }
+#endif
+
+      HitOut res = intersectCylinderSegmentScalar(ro, rd, vaseBase + vec3(-0.015, 0.18, 0.005), vaseBase + vec3(0.055, 0.56, -0.025), 0.0045, true);
+      if (res.hit && res.t < tBest) { tBest = res.t; nb = res.n; matBest = MAT_EUCALYPTUS_STEM; }
+      res = intersectCylinderSegmentScalar(ro, rd, vaseBase + vec3(0.018, 0.34, -0.008), vaseBase + vec3(-0.085, 0.50, 0.032), 0.0035, true);
+      if (res.hit && res.t < tBest) { tBest = res.t; nb = res.n; matBest = MAT_EUCALYPTUS_STEM; }
+
+      const vec3 leafOff[9] = vec3[9](
+        vec3(0.038, 0.36, -0.035), vec3(-0.025, 0.39, 0.028), vec3(0.068, 0.43, -0.015),
+        vec3(-0.055, 0.44, 0.018), vec3(0.022, 0.48, -0.032), vec3(-0.082, 0.49, 0.032),
+        vec3(0.076, 0.52, -0.022), vec3(0.035, 0.56, -0.018), vec3(-0.038, 0.33, -0.024)
+      );
+      const vec3 leafRad[9] = vec3[9](
+        vec3(0.038, 0.007, 0.032), vec3(0.042, 0.008, 0.034), vec3(0.040, 0.008, 0.035),
+        vec3(0.039, 0.007, 0.033), vec3(0.044, 0.009, 0.036), vec3(0.036, 0.007, 0.030),
+        vec3(0.038, 0.008, 0.032), vec3(0.034, 0.007, 0.029), vec3(0.035, 0.007, 0.030)
+      );
+      const float leafYaw[9] = float[9](0.45, -0.60, 0.85, -0.35, 0.20, -0.95, 0.55, -0.25, 1.10);
+      for (int i = 0; i < 9; i++) {
+        res = intersectEllipsoidScalar(ro, rd, vaseBase + leafOff[i], leafRad[i], leafYaw[i]);
+        if (res.hit && res.t < tBest) {
+          tBest = res.t; nb = res.n; matBest = MAT_EUCALYPTUS_LEAF;
+        }
+      }
+
+#ifndef FAST_SECONDARY_PASS
+      res = intersectCylinderSegmentScalar(ro, rd, carafeBase + vec3(0.0, 0.238, 0.0), carafeBase + vec3(0.0, 0.282, 0.0), 0.0405, true);
+      if (res.hit && res.t < tBest) {
+        tBest = res.t; nb = res.n; matBest = MAT_BRASS_SCONCE;
+      }
+#endif
+
+      if (includeGlassVessels) {
+        float tCarafe = 1e9;
+        vec3 nc = vec3(0.0, 1.0, 0.0);
+        bool hitCarafe = false;
+
+        res = intersectEllipsoidScalar(ro, rd, carafeBase + vec3(0.0, 0.105, 0.0), vec3(0.094, 0.105, 0.094), 0.0);
+        if (res.hit) { tCarafe = res.t; nc = res.n; hitCarafe = true; }
+
+        res = intersectCylinderSegmentScalar(ro, rd, carafeBase + vec3(0.0, 0.175, 0.0), carafeBase + vec3(0.0, 0.315, 0.0), 0.038, false);
+        if (res.hit && res.t < tCarafe) { tCarafe = res.t; nc = res.n; hitCarafe = true; }
+
+        res = intersectEllipsoidScalar(ro, rd, carafeBase + vec3(0.0, 0.315, 0.0), vec3(0.044, 0.011, 0.044), 0.0);
+        if (res.hit && res.t < tCarafe) { tCarafe = res.t; nc = res.n; hitCarafe = true; }
+
+        if (hitCarafe && tCarafe < tBest) {
+          tBest = tCarafe; nb = nc; matBest = MAT_GLASS_CARAFE;
+        }
+
+        res = intersectCylinderSegmentScalar(ro, rd, vec3(u_tumblerPos.x, 0.390, u_tumblerPos.y), vec3(u_tumblerPos.x, 0.512, u_tumblerPos.y), 0.043, true);
+        if (res.hit && res.t < tBest) {
+          tBest = res.t; nb = res.n; matBest = MAT_WATER_TUMBLER;
+        }
+      }
+    }
+
+#ifdef FAST_SECONDARY_PASS
+    const bool fastSecMat = true;
+#else
+    const bool fastSecMat = false;
+#endif
+
+    vec3 p = ro + tBest * rd;
+    if (matBest == MAT_FLOOR_OAK) {
+      MatOut m = materialOiledOakAndTravertineFloorScalar(p.x, p.z, false);
+      nb = m.n;
+      uvBest = m.aniso;
+      alb = m.albedo;
+      roughBest = m.rough;
+      matBest = MAT_FLOOR_OAK;
+      f0 = vec3(0.044);
+      metalBest = 0.0;
+    } else if (matBest == MAT_BOUCLE_RUG || matBest == MAT_RUG_LINEN_BORDER) {
+      MatOut m = materialWovenBoucleRugScalar(p, nb, matBest == MAT_RUG_LINEN_BORDER, fastSecMat);
+      alb = m.albedo; roughBest = m.rough; nb = m.n; f0 = vec3(0.032); metalBest = 0.0;
+    } else if (matBest == MAT_BACK_CONCRETE || matBest == MAT_CONCRETE_BENCH) {
+      MatOut m = materialBoardFormedConcreteScalar(p, nb, false, fastSecMat);
+      alb = m.albedo; roughBest = m.rough; nb = m.n; f0 = vec3(0.042);
+    } else if (matBest == MAT_CEILING_CONCRETE) {
+      MatOut m = materialBoardFormedConcreteScalar(p, nb, true, fastSecMat);
+      alb = m.albedo; roughBest = m.rough; nb = m.n; f0 = vec3(0.040);
+    } else if (matBest == MAT_WALNUT_CASEWORK || matBest == MAT_COFFEE_TABLE_BASE) {
+      float wxLocal = matBest == MAT_WALNUT_CASEWORK ? (p.x - u_leftWallShiftX) : (p.x - u_tableParams.x);
+      float wzLocal = matBest == MAT_WALNUT_CASEWORK ? p.z : (p.z - u_tableParams.y);
+      MatOut m = materialAmericanWalnutScalar(vec3(wxLocal, p.y, wzLocal), nb, fastSecMat);
+      alb = m.albedo; roughBest = m.rough; nb = m.n; f0 = vec3(0.046);
+      if (matBest == MAT_COFFEE_TABLE_BASE && abs(nb.y) < 0.7) {
+        float angPed = atan(p.z - tabCz, p.x - tabCx);
+        float flute = cos(angPed * 38.0);
+        alb *= 0.86 + 0.14 * flute;
+        nb = normalize(nb + 0.22 * sin(angPed * 38.0) * vec3(-sin(angPed), 0.0, cos(angPed)));
+        roughBest = clamp(roughBest + 0.05 * (1.0 - flute), 0.12, 0.44);
+      } else if (matBest == MAT_WALNUT_CASEWORK && p.z > 6.85 && p.z < 6.92 && p.y < 0.50) {
+        float doorPhase = fract(uvBest.x * 6.0);
+        float seam = smoothstepCpu(0.0, 0.045, min(doorPhase, 1.0 - doorPhase));
+        alb *= 0.55 + 0.45 * seam;
+      }
+    } else if (matBest == MAT_COFFEE_TABLE_TOP) {
+      float lxT = p.x - u_tableParams.x;
+      float lzT = p.z - u_tableParams.y;
+      float tb = fbm2d(lxT * 4.5 + p.y * 8.0, lzT * 3.8, fastSecMat ? 2 : 3, 853);
+      float tv = 0.5 + 0.5 * sin(lxT * 12.0 + tb * 6.5 + lzT * 4.0 + p.y * 18.0);
+      float tp = valueNoise2d(lxT * 68.0, lzT * 28.0 + p.y * 40.0, 861);
+      float pits = smoothstepCpu(0.75, 0.89, tp) * (1.0 - 0.5 * tv);
+      float pMult = 1.0 - 0.36 * pits;
+      alb = mix(vec3(0.54, 0.46, 0.36), vec3(0.71, 0.64, 0.53), tv) * pMult;
+      roughBest = clamp(0.14 + 0.08 * (1.0 - tv) + 0.25 * pits, 0.11, 0.42);
+      f0 = vec3(0.048);
+    } else if (matBest == MAT_LEATHER_CHAIR) {
+      float pore = valueNoise2d((p.x - u_chairBase.x) * 110.0, (p.z - u_chairBase.z) * 110.0 + p.y * 90.0, 901);
+      float patina = fbm2d((p.x - u_chairBase.x) * 9.0, (p.z - u_chairBase.z) * 9.0 + p.y * 6.0, 2, 907);
+      float edgeD = max(abs(uvBest.x), abs(uvBest.y));
+      float seamWelt = smoothstepCpu(0.86, 0.93, edgeD);
+      float pMult = 0.65 + 0.35 * patina;
+      float wMult = 0.30 * (1.0 - edgeD);
+      float sMult = (0.92 + 0.14 * pore) * (1.0 - 0.25 * seamWelt);
+      alb = (vec3(0.34, 0.125, 0.045) * pMult + vec3(0.48, 0.195, 0.070) * wMult) * sMult;
+      roughBest = clamp(0.24 + 0.10 * (1.0 - patina) + 0.06 * (1.0 - pore), 0.18, 0.38);
+      f0 = vec3(0.046);
+      nb = normalize(vec3(nb.x + (pore - 0.5) * 0.04, nb.y + (patina - 0.5) * 0.04, nb.z));
+    } else if (matBest == MAT_CHAIR_STEEL) {
+      alb = vec3(0.74, 0.75, 0.77); roughBest = 0.18; f0 = vec3(0.72, 0.73, 0.75); metalBest = 0.92;
+    } else if (matBest == MAT_STEEL_MULLION) {
+      alb = vec3(0.055, 0.058, 0.062); roughBest = 0.28; f0 = vec3(0.14, 0.14, 0.15); metalBest = 0.65;
+    } else if (matBest == MAT_BRASS_SCONCE) {
+      alb = vec3(0.82, 0.62, 0.28); roughBest = 0.20; f0 = vec3(0.85, 0.65, 0.30); metalBest = 0.94;
+    } else if (matBest == MAT_ART_CANVAS) {
+      float linen = valueNoise2d(uvBest.x * 140.0, uvBest.y * 140.0, 919);
+      alb = vec3(0.72, 0.66, 0.55) * (0.96 + 0.08 * linen);
+      float dCirc = length(vec2(uvBest.x + 0.12, (uvBest.y - 0.04) * 1.15)) - 0.35;
+      if (dCirc < 0.0) {
+        alb = vec3(0.61, 0.43, 0.25) * (0.95 + 0.09 * linen);
+        if (dCirc > -0.025) nb = normalize(nb + vec3(0.18, 0.18, 0.0));
+      }
+      if (uvBest.x > -0.05 && uvBest.x < 0.29 && abs(uvBest.y + 0.06) < 0.36) {
+        alb = vec3(0.16, 0.145, 0.13) * (0.94 + 0.10 * linen);
+        nb = normalize(nb + vec3(-0.14, 0.10, 0.0));
+      }
+      roughBest = 0.56;
+      f0 = vec3(0.038);
+    } else if (matBest == MAT_ESPRESSO_LIQUID) {
+      float rCrema = length(vec2(p.x - (0.24 + tabDx), p.z - (1.82 + tabDz))) / 0.039;
+      alb = mix(vec3(0.24, 0.12, 0.05), vec3(0.48, 0.28, 0.13), smoothstepCpu(0.35, 0.92, rCrema));
+      roughBest = 0.09;
+      f0 = vec3(0.042);
+    } else if (matBest == MAT_TERRACOTTA_BOOK) {
+      bool pageEdge = abs(nb.y) < 0.35 && (abs(uvBest.x) > 0.94 || uvBest.y < -0.94);
+      alb = pageEdge ? vec3(0.84, 0.80, 0.72) : vec3(0.71, 0.33, 0.17);
+      roughBest = pageEdge ? 0.55 : 0.46;
+      f0 = vec3(0.040);
+    } else if (matBest == MAT_SILK_RIBBON) {
+      alb = vec3(0.66, 0.075, 0.095);
+      roughBest = 0.28;
+      f0 = vec3(0.052);
+    } else if (matBest == MAT_CERAMIC_VESSEL) {
+      float rib = 0.045 * cos(p.y * 95.0);
+      alb *= 1.0 + rib * 0.6;
+      nb = normalize(nb + vec3(0.0, rib, 0.0));
+      f0 = vec3(0.046);
+    } else if (matBest == MAT_OPEN_BOOK_PAGE) {
+      float gutter = 0.52 + 0.48 * smoothstepCpu(0.0, 0.11, abs(uvBest.x));
+      bool inPlate = uvBest.x > -0.82 && uvBest.x < -0.16 && abs(uvBest.y) < 0.70;
+      bool inText = uvBest.x > 0.16 && uvBest.x < 0.78 && uvBest.y > -0.62 && uvBest.y < 0.55 && sin(uvBest.y * 95.0) > 0.15;
+      if (inPlate) {
+        float plateTone = uvBest.y < 0.1 ? (0.22 + 0.14 * sin(uvBest.x * 18.0)) : 0.55;
+        alb = vec3(0.95, 0.88, 0.78) * plateTone * gutter;
+      } else {
+        alb = vec3(0.76, 0.72, 0.64) * gutter;
+      }
+      if (inText) alb *= 0.62;
+      roughBest = 0.58;
+      f0 = vec3(0.035);
+    } else if (matBest == MAT_OPEN_BOOK_COVER) {
+      alb = vec3(0.16, 0.18, 0.21); roughBest = 0.52;
+    } else if (matBest == MAT_EUCALYPTUS_LEAF) {
+      float vn = valueNoise2d((p.x - u_tableParams.x) * 90.0, (p.z - u_tableParams.y) * 90.0, 941);
+      float lMult = 0.88 + 0.24 * vn;
+      alb = vec3(0.24, 0.34, 0.28) * lMult;
+      roughBest = 0.32;
+      f0 = vec3(0.045);
+    } else if (matBest == MAT_EUCALYPTUS_STEM) {
+      alb = vec3(0.19, 0.14, 0.10); roughBest = 0.55;
+    }
+
+    RayHit rh;
+    rh.t = tBest;
+    rh.p = p;
+    rh.n = nb;
+    rh.matId = matBest;
+    rh.albedo = alb;
+    rh.rough = roughBest;
+    rh.f0 = f0;
+    rh.metallic = metalBest;
+    rh.uv = uvBest;
+    return rh;
+  }
+
+  `;
+
+  const FS_PRIMARY = GLSL_SCENE_BASE + GLSL_SCENE_RAYTRACER + `
+  layout(location = 0) out vec4 outHdrT;
+  layout(location = 1) out vec4 outPosMat;
+  layout(location = 2) out vec4 outNormRough;
+
+  void main() {
+    float x = floor(gl_FragCoord.x);
+    float y = floor(gl_FragCoord.y);
+    vec3 rd = computeCameraRayDir(x, y);
+    RayHit h = traceSingleRay(u_camPos, rd, true);
+    vec3 rad = vec3(0.0);
+    if (h.matId != MAT_GLASS_CARAFE && h.matId != MAT_WATER_TUMBLER) {
+      rad = shadeSurfaceScalar(h, rd, false);
+    }
+    outHdrT = vec4(rad, h.t);
+    outPosMat = vec4(h.p, float(h.matId));
+    outNormRough = vec4(h.n, h.rough);
+  }
+  `;
+
+  const FS_GLASS = GLSL_SCENE_BASE + `\n#define FAST_SECONDARY_PASS 1\n` + GLSL_SCENE_RAYTRACER + `
+  uniform sampler2D u_hdrTex;
+  uniform sampler2D u_posMatTex;
+  uniform sampler2D u_normRoughTex;
+  out vec4 outHdrT;
+
+  RayHit traceGlassSecondaryRay(vec3 ro, vec3 rd) {
+    float tBest = 1e9;
+    int matBest = 0;
+    vec3 nb = vec3(0.0, 1.0, 0.0);
+    vec2 uvBest = vec2(0.0);
+    float roughBest = 0.85;
+    float metalBest = 0.0;
+
+    if (rd.y < -1e-6) {
+      float tFl = -ro.y / rd.y;
+      if (tFl > 1e-4 && tFl < tBest) {
+        vec3 p = ro + tFl * rd;
+        if (p.x >= u_roomXLeft - 0.02 && p.x <= u_roomXRight + 0.02 && p.z >= -0.05 && p.z <= u_roomZBack + 0.02) {
+          tBest = tFl; matBest = MAT_FLOOR_OAK; nb = vec3(0.0, 1.0, 0.0); uvBest = vec2(p.x, p.z);
+        }
+      }
+    }
+    if (rd.y > 1e-6) {
+      float tCe = (u_roomYCeil - ro.y) / rd.y;
+      if (tCe > 1e-4 && tCe < tBest) {
+        vec3 p = ro + tCe * rd;
+        if (p.x >= u_roomXLeft - 0.02 && p.x <= u_roomXRight + 0.02 && p.z >= -0.05 && p.z <= u_roomZBack + 0.02) {
+          tBest = tCe; matBest = MAT_CEILING_CONCRETE; nb = vec3(0.0, -1.0, 0.0); uvBest = vec2(p.x, p.z);
+        }
+      }
+    }
+    if (rd.x < -1e-6) {
+      float tLW = (u_roomXLeft - ro.x) / rd.x;
+      if (tLW > 1e-4 && tLW < tBest) {
+        vec3 p = ro + tLW * rd;
+        if (p.y >= 0.0 && p.y <= u_roomYCeil && p.z >= -0.05 && p.z <= u_roomZBack + 0.02) {
+          tBest = tLW; matBest = MAT_BACK_CONCRETE; nb = vec3(1.0, 0.0, 0.0); uvBest = vec2(p.z, p.y);
+        }
+      }
+    }
+    if (rd.z > 1e-6) {
+      float tBW = (u_roomZBack - ro.z) / rd.z;
+      if (tBW > 1e-4 && tBW < tBest) {
+        vec3 p = ro + tBW * rd;
+        if (p.y >= 0.0 && p.y <= u_roomYCeil && p.x >= u_roomXLeft - 0.02 && p.x <= u_backConcreteXMax) {
+          tBest = tBW; matBest = MAT_BACK_CONCRETE; nb = vec3(0.0, 0.0, -1.0); uvBest = vec2(p.x, p.y);
+        }
+      }
+    }
+
+    if (rd.y < -1e-4 && ro.y > 0.01) {
+      vec3 rugC = vec3(0.5 * (u_rugX.x + u_rugX.y), 0.0085, 2.20 + 0.5 * u_tableParams.y);
+      vec3 rugExt = vec3(0.5 * (u_rugX.y - u_rugX.x), 0.0085, 1.72);
+      HitOut hRug = intersectRoundedBoxScalar(ro, rd, rugC, rugExt, 0.006);
+      if (hRug.hit && hRug.t < tBest) {
+        vec3 pRug = ro + hRug.t * rd;
+        float dxEdge = rugExt.x - abs(pRug.x - rugC.x);
+        float dzEdge = rugExt.z - abs(pRug.z - rugC.z);
+        tBest = hRug.t;
+        nb = hRug.n;
+        matBest = (min(dxEdge, dzEdge) < 0.046) ? MAT_RUG_LINEN_BORDER : MAT_BOUCLE_RUG;
+      }
+    }
+
+    HitOut hTbl = intersectRoundedBoxScalar(ro, rd, vec3(0.33 + u_tableParams.x, 0.36, 1.77 + u_tableParams.y), vec3(u_tableParams.z, 0.030, 0.69), 0.008);
+    if (hTbl.hit && hTbl.t < tBest) {
+      tBest = hTbl.t; nb = hTbl.n; matBest = MAT_COFFEE_TABLE_TOP;
+    }
+
+    HitOut hVase = intersectEllipsoidScalar(ro, rd, vec3(0.44 + u_tableParams.x, 0.495, 1.98 + u_tableParams.y), vec3(0.088, 0.105, 0.088), 0.0);
+    if (hVase.hit && hVase.t < tBest) {
+      tBest = hVase.t; nb = hVase.n; matBest = MAT_CERAMIC_VESSEL;
+    }
+
+    HitOut hBk = intersectObbYScalar(ro, rd, vec3(u_bookCarafePos.x, 0.408, u_bookCarafePos.y), vec3(0.222, 0.010, 0.158), -0.19, 0.003, 0.0);
+    if (hBk.hit && hBk.t < tBest) {
+      tBest = hBk.t; nb = hBk.n; matBest = MAT_OPEN_BOOK_PAGE; uvBest = vec2(hBk.l.x, hBk.l.z);
+    }
+
+    vec3 p = tBest < 1e8 ? (ro + tBest * rd) : (ro + 25.0 * rd);
+    vec3 alb = vec3(0.5);
+    vec3 f0 = vec3(0.04);
+
+    if (matBest == MAT_FLOOR_OAK) {
+      MatOut m = materialOiledOakAndTravertineFloorScalar(p.x, p.z, false);
+      alb = m.albedo; roughBest = m.rough; nb = m.n;
+      matBest = MAT_FLOOR_OAK;
+      f0 = vec3(0.044);
+    } else if (matBest == MAT_BOUCLE_RUG || matBest == MAT_RUG_LINEN_BORDER) {
+      MatOut m = materialWovenBoucleRugScalar(p, nb, matBest == MAT_RUG_LINEN_BORDER, true);
+      alb = m.albedo; roughBest = m.rough; nb = m.n; f0 = vec3(0.032);
+    } else if (matBest == MAT_BACK_CONCRETE) {
+      MatOut m = materialBoardFormedConcreteScalar(p, nb, false, true);
+      alb = m.albedo; roughBest = m.rough; nb = m.n; f0 = vec3(0.042);
+    } else if (matBest == MAT_CEILING_CONCRETE) {
+      MatOut m = materialBoardFormedConcreteScalar(p, nb, true, true);
+      alb = m.albedo; roughBest = m.rough; nb = m.n; f0 = vec3(0.040);
+    } else if (matBest == MAT_COFFEE_TABLE_TOP) {
+      float lxT = p.x - (0.33 + u_tableParams.x);
+      float lzT = p.z - (1.77 + u_tableParams.y);
+      float tb = fbm2d(lxT * 4.5 + p.y * 8.0, lzT * 3.8, 2, 853);
+      float tv = 0.5 + 0.5 * sin(lxT * 12.0 + tb * 6.5 + lzT * 4.0 + p.y * 18.0);
+      alb = mix(vec3(0.49, 0.41, 0.32), vec3(0.64, 0.57, 0.46), tv);
+      roughBest = clamp(0.14 + 0.08 * (1.0 - tv), 0.11, 0.42);
+      f0 = vec3(0.048);
+    } else if (matBest == MAT_CERAMIC_VESSEL) {
+      float rib = 0.5 + 0.5 * sin(p.y * 280.0);
+      alb = vec3(0.76, 0.72, 0.65) * (0.94 + 0.06 * rib);
+      roughBest = 0.48; f0 = vec3(0.045);
+    } else if (matBest == MAT_OPEN_BOOK_PAGE) {
+      float gutter = 0.52 + 0.48 * smoothstepCpu(0.0, 0.11, abs(uvBest.x));
+      alb = vec3(0.76, 0.72, 0.64) * gutter;
+      roughBest = 0.58; f0 = vec3(0.035);
+    }
+
+    RayHit rh;
+    rh.t = tBest; rh.p = p; rh.n = nb; rh.matId = matBest;
+    rh.albedo = alb; rh.rough = roughBest; rh.f0 = f0; rh.metallic = metalBest; rh.uv = uvBest;
+    return rh;
+  }
+
+  vec3 shadeGlassVesselScalar(vec3 p, vec3 n, int matId, vec3 rd) {
+    vec3 v = -rd;
+    float cosI = saturate(dot(n, v));
+    float fDielectric = dielectricFresnelExact(cosI, 1.0, 1.52);
+
+    vec3 rf = normalize(rd - 2.0 * dot(rd, n) * n);
+
+    float sunVisG = evaluateWindowSunTransmissionScalar(p);
+    vec3 h = normalize(v + u_sunDir);
+    float nDotL = saturate(dot(n, u_sunDir));
+    float nDotV = clamp(cosI, 1e-4, 1.0);
+    float nDotH = saturate(dot(n, h));
+    float vDotH = saturate(dot(v, h));
+    float specG = ggxIsotropicD(nDotH, 0.032) * smithGgxG(nDotV, nDotL, 0.032) * nDotL * schlickFresnelScalar(vDotH, 0.043);
+    float sunSpecMult = specG * sunVisG * 1.45;
+
+    bool isCarafe = matId == MAT_GLASS_CARAFE;
+    float waterLevel = isCarafe ? 0.508 : 0.462;
+    float etaIn = p.y < waterLevel ? (1.0 / 1.44) : (1.0 / 1.24);
+
+    float cosIn = -dot(rd, n);
+    float sin2T1 = etaIn * etaIn * max(0.0, 1.0 - cosIn * cosIn);
+    float cosT1 = sqrt(max(0.0, 1.0 - sin2T1));
+    vec3 r1 = normalize(etaIn * rd + (etaIn * cosIn - cosT1) * n);
+
+    float chordLen = (isCarafe ? 0.13 : 0.075) * (0.35 + 0.65 * cosI);
+    vec2 pExit = p.xz + r1.xz * chordLen;
+    vec2 vc = isCarafe ? u_bookCarafePos.zw : u_tumblerPos;
+    vec2 ne = normalize(pExit - vc);
+
+    float etaOut = 1.18;
+    float cosOut = r1.x * ne.x + r1.z * ne.y;
+    float sin2T2 = etaOut * etaOut * max(0.0, 1.0 - cosOut * cosOut);
+    vec3 rfxOut = r1;
+    if (sin2T2 <= 1.0) {
+      float cosT2 = sqrt(max(0.0, 1.0 - sin2T2));
+      rfxOut = normalize(vec3(
+        etaOut * r1.x + (etaOut * cosOut - cosT2) * (-ne.x),
+        etaOut * r1.y,
+        etaOut * r1.z + (etaOut * cosOut - cosT2) * (-ne.y)
+      ));
+    }
+
+    vec3 secRad[2];
+    for (int b = 0; b < 2; b++) {
+      vec3 bRo = b == 0 ? (p + n * 0.004) : (p + r1 * 0.004);
+      vec3 bRd = b == 0 ? rf : rfxOut;
+      RayHit bHit = traceGlassSecondaryRay(bRo, bRd);
+      secRad[b] = shadeSurfaceScalar(bHit, bRd, true);
+    }
+
+    float baseThick = exp(-((p.y - 0.39) / 0.024) * ((p.y - 0.39) / 0.024)) * 0.18;
+    float wallPath = 0.025 / max(cosI, 0.14) + baseThick;
+    vec3 sig = isCarafe ? vec3(6.8, 2.1, 7.6) : vec3(0.28, 0.18, 0.22);
+    vec3 tr = exp(-sig * wallPath);
+
+    float menDist = (p.y - waterLevel) / 0.0045;
+    float menRing = exp(-menDist * menDist) * (0.45 + 0.55 * sunVisG);
+    float shamDist = (p.y - 0.402) / 0.0042;
+    float lipDist = (p.y - 0.502) / 0.0032;
+    float crystalRings = isCarafe ? 0.0 : (
+      0.72 * exp(-shamDist * shamDist) * (0.55 + 0.45 * sunVisG) +
+      0.85 * exp(-lipDist * lipDist) * (0.50 + 0.50 * sunVisG)
+    );
+    float rimW = pow(1.0 - cosI, 3.2) * sunVisG;
+    vec3 rimCol = isCarafe ? vec3(1.8, 2.9, 1.1) : vec3(0.85, 0.88, 0.94);
+
+    return (1.0 - fDielectric) * secRad[1] * tr +
+      fDielectric * secRad[0] * 1.18 +
+      sunSpecMult * u_sunRadiance +
+      menRing * (isCarafe ? vec3(2.8, 2.4, 1.6) : vec3(1.15, 1.18, 1.22)) +
+      crystalRings * vec3(1.45, 1.48, 1.54) +
+      rimW * rimCol;
+  }
+
+  void main() {
+    ivec2 ip = ivec2(gl_FragCoord.xy);
+    vec4 hdrT = texelFetch(u_hdrTex, ip, 0);
+    vec4 posMat = texelFetch(u_posMatTex, ip, 0);
+    int m = int(floor(posMat.w + 0.5));
+    if (m != MAT_GLASS_CARAFE && m != MAT_WATER_TUMBLER) {
+      outHdrT = hdrT;
+      return;
+    }
+    vec4 normRough = texelFetch(u_normRoughTex, ip, 0);
+    vec3 rd = computeCameraRayDir(float(ip.x), float(ip.y));
+    vec3 rad = shadeGlassVesselScalar(posMat.xyz, normRough.xyz, m, rd);
+    outHdrT = vec4(rad, hdrT.w);
+  }
+  `;
+
+  const FS_FLOOR_REFL = GLSL_SCENE_BASE + `\n#define FAST_SECONDARY_PASS 1\n` + GLSL_SCENE_RAYTRACER + `
+  uniform sampler2D u_hdrTex;
+  uniform sampler2D u_posMatTex;
+  uniform sampler2D u_normRoughTex;
+  out vec4 outRefl;
+
+  void main() {
+    ivec2 ip = ivec2(gl_FragCoord.xy);
+    vec4 hdrT = texelFetch(u_hdrTex, ip, 0);
+    vec4 posMat = texelFetch(u_posMatTex, ip, 0);
+    int m = int(floor(posMat.w + 0.5));
+    if (m != MAT_FLOOR_OAK && m != MAT_FLOOR_TRAVERTINE && m != MAT_BRASS_INLAY) {
+      outRefl = vec4(hdrT.rgb, 0.0);
+      return;
+    }
+
+    vec4 normRough = texelFetch(u_normRoughTex, ip, 0);
+    vec3 rd = computeCameraRayDir(float(ip.x), float(ip.y));
+    vec3 n = normRough.xyz;
+    float dDotN = dot(rd, n);
+    vec3 rm = normalize(vec3(
+      rd.x - 2.0 * dDotN * n.x,
+      max(rd.y - 2.0 * dDotN * n.y, 0.015),
+      rd.z - 2.0 * dDotN * n.z
+    ));
+
+    vec3 fPos = posMat.xyz;
+    RayHit secHit = traceSingleRay(vec3(fPos.x, fPos.y + 0.003, fPos.z), rm, true);
+    vec3 pixRad = shadeSurfaceScalar(secHit, rm, true);
+
+    float tCav = ((1.28 + u_tableParams.y) - fPos.z) / max(rm.z, 0.05);
+    if (tCav > 0.0 && tCav < 2.4) {
+      float xCav = fPos.x + tCav * rm.x - (0.33 + u_tableParams.x);
+      float yCav = fPos.y + tCav * rm.y;
+      if (yCav < 0.37 && abs(xCav) < u_tableParams.z + 0.03) {
+        float cavX = 1.0 - smoothstepCpu(u_tableParams.w - 0.03, u_tableParams.z + 0.01, abs(xCav));
+        float cavY = 1.0 - smoothstepCpu(0.24, 0.36, yCav);
+        float cavW = 0.94 * cavX * cavY;
+        pixRad = mix(pixRad, vec3(0.042, 0.028, 0.016), cavW);
+      }
+    }
+    outRefl = vec4(pixRad, 1.0);
+  }
+  `;
+
+  const FS_BLUR = `#version 300 es
+  precision highp float;
+  precision highp int;
+  uniform sampler2D u_srcTex;
+  uniform ivec2 u_srcSize;
+  uniform ivec2 u_dir;
+  uniform int u_halfRadius;
+  uniform float u_sigma;
+  out vec4 outColor;
+
+  void main() {
+    ivec2 ip = ivec2(gl_FragCoord.xy);
+    vec4 acc = vec4(0.0);
+    float wSum = 0.0;
+    for (int k = -u_halfRadius; k <= u_halfRadius; k++) {
+      float fk = float(k) / u_sigma;
+      float w = exp(-0.5 * fk * fk);
+      ivec2 sp = clamp(ip + u_dir * k, ivec2(0), u_srcSize - ivec2(1));
+      acc += w * texelFetch(u_srcTex, sp, 0);
+      wSum += w;
+    }
+    outColor = acc / max(wSum, 1e-8);
+  }
+  `;
+
+  const FS_DOWNSAMPLE2X = `#version 300 es
+  precision highp float;
+  precision highp int;
+  uniform sampler2D u_srcTex;
+  uniform ivec2 u_srcSize;
+  uniform int u_bloomMode;
+  out vec4 outColor;
+
+  void main() {
+    ivec2 sp = min(ivec2(gl_FragCoord.xy) * 2, u_srcSize - ivec2(1));
+    vec4 c = texelFetch(u_srcTex, sp, 0);
+    if (u_bloomMode == 1) {
+      float lum = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+      float t = clamp((lum - 1.35) / (4.20 - 1.35), 0.0, 1.0);
+      float bm = t * t * (3.0 - 2.0 * t);
+      outColor = vec4(c.rgb * bm, 1.0);
+    } else {
+      outColor = c;
+    }
+  }
+  `;
+
+  const FS_FLOOR_COMBINE = GLSL_SCENE_BASE + `
+  uniform sampler2D u_hdrTex;
+  uniform sampler2D u_posMatTex;
+  uniform sampler2D u_normRoughTex;
+  uniform sampler2D u_sharpTex;
+  uniform sampler2D u_lobe1Tex;
+  uniform sampler2D u_lobe2SubTex;
+  uniform ivec2 u_subSize;
+  out vec4 outHdrT;
+
+  void main() {
+    ivec2 ip = ivec2(gl_FragCoord.xy);
+    vec4 hdrT = texelFetch(u_hdrTex, ip, 0);
+    vec4 posMat = texelFetch(u_posMatTex, ip, 0);
+    int m = int(floor(posMat.w + 0.5));
+    if (m != MAT_FLOOR_OAK && m != MAT_FLOOR_TRAVERTINE && m != MAT_BRASS_INLAY) {
+      outHdrT = hdrT;
+      return;
+    }
+
+    vec4 normRough = texelFetch(u_normRoughTex, ip, 0);
+    float rghFl = normRough.w;
+    float wSharp = clamp(1.0 - (rghFl - 0.08) * 5.5, 0.12, 0.78);
+    float wWide = clamp((rghFl - 0.09) * 4.2, 0.15, 0.65);
+    float wMid = max(0.0, 1.0 - wSharp - wWide);
+
+    ivec2 subIp = min(ip >> 1, u_subSize - ivec2(1));
+    vec3 sharpCol = texelFetch(u_sharpTex, ip, 0).rgb;
+    vec3 lobe1Col = texelFetch(u_lobe1Tex, ip, 0).rgb;
+    vec3 lobe2Col = texelFetch(u_lobe2SubTex, subIp, 0).rgb;
+    vec3 acc = wSharp * sharpCol + wMid * lobe1Col + wWide * lobe2Col;
+
+    vec3 rd = computeCameraRayDir(float(ip.x), float(ip.y));
+    float cosTheta = saturate(-dot(normRough.xyz, rd));
+    float glossAtten = clamp(1.0 - 1.25 * (rghFl - 0.08), 0.36, 0.96);
+    vec3 f0 = m == MAT_BRASS_INLAY ? vec3(0.85, 0.65, 0.30) : vec3(m == MAT_FLOOR_TRAVERTINE ? 0.048 : 0.044);
+    vec3 fEff = vec3(
+      schlickFresnelScalar(cosTheta, f0.r),
+      schlickFresnelScalar(cosTheta, f0.g),
+      schlickFresnelScalar(cosTheta, f0.b)
+    ) * glossAtten;
+
+    vec3 outRgb = hdrT.rgb * (vec3(1.0) - 0.55 * fEff) + acc * fEff * 1.32;
+    outHdrT = vec4(outRgb, hdrT.w);
+  }
+  `;
+
+  const FS_EDGE_SSAA = GLSL_SCENE_BASE + `\n#define FAST_SECONDARY_PASS 1\n` + GLSL_SCENE_RAYTRACER + `
+  uniform sampler2D u_hdrTex;
+  uniform sampler2D u_posMatTex;
+  out vec4 outHdrT;
+
+  void main() {
+    ivec2 ip = ivec2(gl_FragCoord.xy);
+    vec4 hdrT = texelFetch(u_hdrTex, ip, 0);
+    int w = int(u_res.x);
+    int h = int(u_res.y);
+    if (w < 640 || ip.x < 1 || ip.x >= w - 1 || ip.y < 1 || ip.y >= h - 1) {
+      outHdrT = hdrT;
+      return;
+    }
+
+    int m0 = int(floor(texelFetch(u_posMatTex, ip, 0).w + 0.5));
+    int mUp = int(floor(texelFetch(u_posMatTex, ip - ivec2(0, 1), 0).w + 0.5));
+    int mLeft = int(floor(texelFetch(u_posMatTex, ip - ivec2(1, 0), 0).w + 0.5));
+
+    float t0 = hdrT.w;
+    float tUp = texelFetch(u_hdrTex, ip - ivec2(0, 1), 0).w;
+    float tLeft = texelFetch(u_hdrTex, ip - ivec2(1, 0), 0).w;
+
+    bool edgeMat = (m0 != mUp) || (m0 != mLeft);
+    bool edgeDepth = (abs(t0 - tUp) > 0.09) || (abs(t0 - tLeft) > 0.09);
+    if (!edgeMat && !edgeDepth) {
+      outHdrT = hdrT;
+      return;
+    }
+
+    vec3 rds = computeCameraRayDir(float(ip.x) - 0.35, float(ip.y) - 0.15);
+    RayHit hS = traceSingleRay(u_camPos, rds, true);
+    vec3 sRad1 = (hS.matId == MAT_GLASS_CARAFE || hS.matId == MAT_WATER_TUMBLER)
+      ? hdrT.rgb
+      : shadeSurfaceScalar(hS, rds, false);
+    vec3 neigh = 0.5 * (texelFetch(u_hdrTex, ip + ivec2(1, 0), 0).rgb + texelFetch(u_hdrTex, ip + ivec2(0, 1), 0).rgb);
+    vec3 acc = hdrT.rgb * 0.50 + 0.25 * sRad1 + 0.25 * neigh;
+    outHdrT = vec4(acc, t0);
+  }
+  `;
+
+  const FS_VOL_SUB = GLSL_SCENE_BASE + `
+  uniform sampler2D u_hdrTex;
+  out vec4 outVol;
+
+  void main() {
+    ivec2 vip = ivec2(gl_FragCoord.xy);
+    ivec2 ip = min(vip * 4, ivec2(int(u_res.x) - 1, int(u_res.y) - 1));
+    float hitT = texelFetch(u_hdrTex, ip, 0).w;
+    vec3 rd = computeCameraRayDir(float(ip.x), float(ip.y));
+
+    float tMaxSub = min(hitT, 8.6);
+    float tStart = 0.45;
+    float dt = max((tMaxSub - tStart) / 12.0, 0.0);
+
+    const float gMie = 0.66;
+    const float gMie2 = 0.4356;
+    float cosScatter = -dot(rd, u_sunDir);
+    float hgDenom = max(1.0 + gMie2 - 2.0 * gMie * cosScatter, 0.08);
+    float hgPhase = (1.0 - gMie2) / (4.0 * PI * hgDenom * sqrt(hgDenom));
+    float phaseWeight = 0.38 + 0.85 * hgPhase;
+
+    float jitter = hash2d(vip.x, vip.y, 21299);
+    float accumScatter = 0.0;
+    for (int s = 0; s < 12; s++) {
+      float frac = (float(s) + jitter) / 12.0;
+      float tCur = tStart + frac * (tMaxSub - tStart);
+      vec3 sp = u_camPos + tCur * rd;
+      if (sp.x > u_roomXLeft && sp.x < u_roomXRight && sp.y > 0.02 && sp.y < u_roomYCeil && sp.z < u_roomZBack) {
+        float sunV = evaluateWindowSunTransmissionScalar(sp);
+        if (sunV > 1e-5) {
+          float uAir = sp.x * 0.75 + sp.y * 0.55;
+          float vAir = sp.z * 0.65 - sp.y * 0.45;
+          float airDensity = 0.65 + 0.55 * valueNoise2d(uAir, vAir, 1103 + s * 7);
+          float hWeight = exp(-0.18 * max(sp.y - 0.5, 0.0));
+          accumScatter += sunV * airDensity * hWeight * dt * 0.0145 * phaseWeight;
+        }
+      }
+    }
+
+    vec3 volScale = vec3(
+      1.45 * (u_sunRadiance.r / 15.8),
+      1.02 * (u_sunRadiance.g / 12.2),
+      0.56 * (u_sunRadiance.b / 7.8)
+    );
+    outVol = vec4(accumScatter * volScale, 1.0);
+  }
+  `;
+
+  const FS_VOL_UPSAMPLE_AND_MOTE = GLSL_SCENE_BASE + `
+  uniform sampler2D u_volSubTex;
+  uniform ivec2 u_volSize;
+  out vec4 outVolMote;
+
+  void main() {
+    float x = floor(gl_FragCoord.x);
+    float y = floor(gl_FragCoord.y);
+
+    float fx = (x / max(u_res.x - 1.0, 1.0)) * float(u_volSize.x - 1);
+    float fy = (y / max(u_res.y - 1.0, 1.0)) * float(u_volSize.y - 1);
+    int x0 = min(int(floor(fx)), u_volSize.x - 1);
+    int y0 = min(int(floor(fy)), u_volSize.y - 1);
+    int x1 = min(x0 + 1, u_volSize.x - 1);
+    int y1 = min(y0 + 1, u_volSize.y - 1);
+    float wx = fx - float(x0);
+    float wy = fy - float(y0);
+
+    vec3 c00 = texelFetch(u_volSubTex, ivec2(x0, y0), 0).rgb;
+    vec3 c10 = texelFetch(u_volSubTex, ivec2(x1, y0), 0).rgb;
+    vec3 c01 = texelFetch(u_volSubTex, ivec2(x0, y1), 0).rgb;
+    vec3 c11 = texelFetch(u_volSubTex, ivec2(x1, y1), 0).rgb;
+    vec3 volUp = mix(mix(c00, c10, wx), mix(c01, c11, wx), wy);
+
+    float xx = x / max(u_res.x - 1.0, 1.0);
+    float yy = y / max(u_res.y - 1.0, 1.0);
+    float mf1 = valueNoise2d(xx * 340.0, yy * 255.0, 1201);
+    float mf2 = valueNoise2d(xx * 190.0 + 13.0, yy * 145.0 + 7.0, 1217);
+    float moteSpark = smoothstepCpu(0.962, 0.992, mf1 * (0.55 + 0.45 * mf2));
+
+    outVolMote = vec4(volUp, moteSpark);
+  }
+  `;
+
+  const FS_VOL_COMBINE = `#version 300 es
+  precision highp float;
+  precision highp int;
+  uniform sampler2D u_hdrTex;
+  uniform sampler2D u_volBlurTex;
+  uniform sampler2D u_moteBlurTex;
+  out vec4 outHdr;
+
+  void main() {
+    ivec2 ip = ivec2(gl_FragCoord.xy);
+    vec4 hdrT = texelFetch(u_hdrTex, ip, 0);
+    vec3 vCol = texelFetch(u_volBlurTex, ip, 0).rgb;
+    float moteGlow = texelFetch(u_moteBlurTex, ip, 0).a;
+    float beamStrength = (vCol.r + vCol.g + vCol.b) / 3.0;
+    float t = clamp((beamStrength - 0.025) / (0.095 - 0.025), 0.0, 1.0);
+    float sm = t * t * (3.0 - 2.0 * t);
+    float moteW = hdrT.w > 2.0 ? (moteGlow * sm * 0.22) : 0.0;
+    vec3 hdr = max(hdrT.rgb + vCol + moteW * vec3(1.55, 1.15, 0.68), vec3(0.0)) * 0.88;
+    outHdr = vec4(hdr, hdrT.w);
+  }
+  `;
+
+  const FS_TONEMAP = `#version 300 es
+  precision highp float;
+  precision highp int;
+  uniform sampler2D u_hdrTex;
+  uniform sampler2D u_bTightTex;
+  uniform sampler2D u_bWideTex;
+  uniform vec2 u_res;
+  uniform float u_camVShift;
+  uniform ivec2 u_hSub2Size;
+  uniform ivec2 u_hSub4Size;
+  out vec4 outSrgb;
+
+  vec3 acesFilm(vec3 x) {
+    const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
+    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+  }
+
+  vec3 linearToSrgb(vec3 m) {
+    const float invGamma = 1.0 / 2.24;
+    vec3 hi = 1.055 * pow(max(m, vec3(0.0)), vec3(invGamma)) - 0.055;
+    vec3 lo = 12.92 * m;
+    return clamp(mix(hi, lo, lessThanEqual(m, vec3(0.0031308))), 0.0, 1.0);
+  }
+
+  void main() {
+    ivec2 ip = ivec2(gl_FragCoord.xy);
+    float x = float(ip.x);
+    float y = float(ip.y);
+    float aspectInv = u_res.y / u_res.x;
+    float vertLensNorm = 1.0 / max(1.0, aspectInv / 0.75);
+
+    float uu = -1.0 + (2.0 * x) / max(u_res.x - 1.0, 1.0);
+    float vv = aspectInv - (2.0 * aspectInv * y) / max(u_res.y - 1.0, 1.0) + u_camVShift;
+    float duLens = uu * 0.62;
+    float dvLens = (vv - u_camVShift) * 0.62 * vertLensNorm;
+    float cosLens = 1.0 / sqrt(1.0 + duLens * duLens + dvLens * dvLens);
+    float vignette = 0.42 + 0.58 * pow(cosLens, 3.4);
+
+    ivec2 p2 = min(ip >> 1, u_hSub2Size - ivec2(1));
+    ivec2 p4 = min(ip >> 2, u_hSub4Size - ivec2(1));
+
+    vec3 hdr = texelFetch(u_hdrTex, ip, 0).rgb;
+    vec3 bTight = texelFetch(u_bTightTex, p2, 0).rgb;
+    vec3 bWide = texelFetch(u_bWideTex, p4, 0).rgb;
+
+    vec3 c = (hdr + 0.065 * bTight + 0.045 * bWide * vec3(1.12, 0.96, 0.82)) * vignette;
+    outSrgb = vec4(linearToSrgb(acesFilm(c)), 1.0);
+  }
+  `;
+
+  const FS_FINAL_SCREEN = `#version 300 es
+  precision highp float;
+  precision highp int;
+  const float PI = 3.14159265358979323846;
+  uniform sampler2D u_srgbTex;
+  uniform vec2 u_res;
+  uniform float u_resScale;
+  uniform float u_camVShift;
+  out vec4 outFragColor;
+
+  float hashGrain(int ixi, int iyi, int sdi) {
+    uint n0 = (uint(ixi) * 374761393u + uint(iyi) * 668265263u + uint(sdi) * 1442695041u) & 0x7fffffffu;
+    uint x = (n0 ^ (n0 >> 13u));
+    uint xHi = x >> 16u;
+    uint xLo = x & 0xffffu;
+    uint pLo = x * 1274126177u;
+    uint pShr16 = ((xHi * 19441u) << 16u) + (xHi * 40801u) + (xLo * 19441u) + ((xLo * 40801u) >> 16u);
+    uint res = (pLo ^ pShr16) & 0x7fffffffu;
+    return float(res) / 2147483647.0;
+  }
+
+  void main() {
+    int x = int(gl_FragCoord.x);
+    int y = int(u_res.y) - 1 - int(gl_FragCoord.y);
+
+    float fx = float(x);
+    float fy = float(y);
+    float aspectInv = u_res.y / u_res.x;
+    float vertLensNorm = 1.0 / max(1.0, aspectInv / 0.75);
+    float uu = -1.0 + (2.0 * fx) / max(u_res.x - 1.0, 1.0);
+    float vvGrid = aspectInv - (2.0 * aspectInv * fy) / max(u_res.y - 1.0, 1.0) + u_camVShift;
+    float vv = (vvGrid - u_camVShift) * vertLensNorm;
+
+    float rCorner = length(vec2(uu, vv));
+    float caShift = clamp((rCorner - 0.45) * 1.35 * u_resScale, 0.0, 1.4 * u_resScale);
+    int wMax = int(u_res.x) - 1;
+
+    float dxCa = clamp(fx + uu * caShift, 0.0, u_res.x - 1.001);
+    int ix0 = int(floor(dxCa));
+    float fxCa = dxCa - float(ix0);
+    int ix1 = min(ix0 + 1, wMax);
+    float rChan = mix(
+      texelFetch(u_srgbTex, ivec2(ix0, y), 0).r,
+      texelFetch(u_srgbTex, ivec2(ix1, y), 0).r,
+      fxCa
+    );
+
+    float gChan = texelFetch(u_srgbTex, ivec2(x, y), 0).g;
+
+    float dxCaB = clamp(fx - uu * caShift * 0.85, 0.0, u_res.x - 1.001);
+    int ix0B = int(floor(dxCaB));
+    float fxB = dxCaB - float(ix0B);
+    int ix1B = min(ix0B + 1, wMax);
+    float bChan = mix(
+      texelFetch(u_srgbTex, ivec2(ix0B, y), 0).b,
+      texelFetch(u_srgbTex, ivec2(ix1B, y), 0).b,
+      fxB
+    );
+
+    float u1 = max(1e-6, hashGrain(x, y, 24341));
+    float u2 = hashGrain(x, y, 28381);
+    float grainRaw = sqrt(-2.0 * log(u1)) * cos(2.0 * PI * u2) * 0.0085;
+
+    vec3 c = vec3(rChan, gChan, bChan);
+    vec3 finalCol = clamp(c + grainRaw * 4.0 * c * (vec3(1.0) - c), 0.0, 1.0);
+    outFragColor = vec4(finalCol, 1.0);
+  }
+  `;
+
+  let glEngine = null;
+
+  function compileGlShader(gl, type, src, label) {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      const log = gl.getShaderInfoLog(sh);
+      gl.deleteShader(sh);
+      throw new Error(`Shader compile error (${label}):\n${log}`);
+    }
+    return sh;
+  }
+
+  function createGlProgram(gl, vsSrc, fsSrc, label) {
+    const vs = compileGlShader(gl, gl.VERTEX_SHADER, vsSrc, `${label}:VS`);
+    const fs = compileGlShader(gl, gl.FRAGMENT_SHADER, fsSrc, `${label}:FS`);
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      const log = gl.getProgramInfoLog(prog);
+      gl.deleteProgram(prog);
+      throw new Error(`Program link error (${label}):\n${log}`);
+    }
+    return prog;
+  }
+
+  function createFloatTex2D(gl, w, h, internalFmt) {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, internalFmt || gl.RGBA16F, w, h);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return tex;
+  }
+
+  function createSingleFbo(gl, tex) {
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+    const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if (st !== gl.FRAMEBUFFER_COMPLETE) {
+      throw new Error(`Incomplete FBO: 0x${st.toString(16)}`);
+    }
+    return fbo;
+  }
+
+  function initWebGL2Engine(canvas) {
+    if (window.location.search.includes("backend=cpu")) return null;
+    try {
+      const gl = canvas.getContext("webgl2", {
+        alpha: false,
+        depth: false,
+        stencil: false,
+        antialias: false,
+        preserveDrawingBuffer: true,
+        powerPreference: "high-performance"
+      });
+      if (!gl) return null;
+      const extFloat = gl.getExtension("EXT_color_buffer_float");
+      if (!extFloat) return null;
+
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.disable(gl.DEPTH_TEST);
+      gl.disable(gl.BLEND);
+      gl.disable(gl.CULL_FACE);
+
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+
+      // 1. Upload static 1024x1024 periodic lattice noise texture once
+      const randTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, randTex);
+      gl.texStorage2D(gl.TEXTURE_2D, 1, gl.R32F, 1024, 1024);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 1024, 1024, gl.RED, gl.FLOAT, new Float32Array(RAND_1024));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+
+      // 2. Upload 4190x9 walnut library catalog textures once
+      const cat = MASTER_CATALOG;
+      const totalBins = cat.nBins * cat.nTiers;
+      const metaData = new Float32Array(totalBins * 4);
+      const colData = new Float32Array(totalBins * 4);
+      const bandData = new Float32Array(totalBins * 4);
+      const band2Data = new Float32Array(totalBins);
+      for (let i = 0; i < totalBins; i++) {
+        metaData[i * 4] = cat.bookPresent[i];
+        metaData[i * 4 + 1] = cat.bookHeight[i];
+        metaData[i * 4 + 2] = cat.bookFrontX[i];
+        metaData[i * 4 + 3] = cat.bookUSpine[i];
+
+        colData[i * 4] = cat.bookColor[i * 3];
+        colData[i * 4 + 1] = cat.bookColor[i * 3 + 1];
+        colData[i * 4 + 2] = cat.bookColor[i * 3 + 2];
+        colData[i * 4 + 3] = cat.bookRough[i];
+
+        bandData[i * 4] = cat.bookBandCol[i * 3];
+        bandData[i * 4 + 1] = cat.bookBandCol[i * 3 + 1];
+        bandData[i * 4 + 2] = cat.bookBandCol[i * 3 + 2];
+        bandData[i * 4 + 3] = cat.bookBandY0[i];
+
+        band2Data[i] = cat.bookBandY1[i];
+      }
+
+      function uploadCatalogTex(internalFmt, fmt, arr) {
+        const t = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texStorage2D(gl.TEXTURE_2D, 1, internalFmt, cat.nBins, cat.nTiers);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, cat.nBins, cat.nTiers, fmt, gl.FLOAT, arr);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        return t;
+      }
+
+      const bookMetaTex = uploadCatalogTex(gl.RGBA32F, gl.RGBA, metaData);
+      const bookColTex = uploadCatalogTex(gl.RGBA32F, gl.RGBA, colData);
+      const bookBandTex = uploadCatalogTex(gl.RGBA32F, gl.RGBA, bandData);
+      const bookBand2Tex = uploadCatalogTex(gl.R32F, gl.RED, band2Data);
+
+      // 3. Pre-allocate all multi-pass float textures & FBOs once at GL_MAX_W x GL_MAX_H
+      const texHdrA = createFloatTex2D(gl, GL_MAX_W, GL_MAX_H, gl.RGBA32F);
+      const texHdrB = createFloatTex2D(gl, GL_MAX_W, GL_MAX_H, gl.RGBA32F);
+      const texPosMat = createFloatTex2D(gl, GL_MAX_W, GL_MAX_H, gl.RGBA32F);
+      const texNormRough = createFloatTex2D(gl, GL_MAX_W, GL_MAX_H, gl.RGBA16F);
+      const texReflSharp = createFloatTex2D(gl, GL_MAX_W, GL_MAX_H, gl.RGBA16F);
+      const texTempA = createFloatTex2D(gl, GL_MAX_W, GL_MAX_H, gl.RGBA16F);
+      const texTempB = createFloatTex2D(gl, GL_MAX_W, GL_MAX_H, gl.RGBA16F);
+      const texLobe1 = createFloatTex2D(gl, GL_MAX_W, GL_MAX_H, gl.RGBA16F);
+
+      const halfW = GL_MAX_W >> 1, halfH = GL_MAX_H >> 1;
+      const texSubA = createFloatTex2D(gl, halfW, halfH, gl.RGBA16F);
+      const texSubB = createFloatTex2D(gl, halfW, halfH, gl.RGBA16F);
+      const texLobe2Sub = createFloatTex2D(gl, halfW, halfH, gl.RGBA16F);
+
+      const quarterW = GL_MAX_W >> 2, quarterH = GL_MAX_H >> 2;
+      const texQuarterA = createFloatTex2D(gl, quarterW, quarterH, gl.RGBA16F);
+      const texQuarterB = createFloatTex2D(gl, quarterW, quarterH, gl.RGBA16F);
+
+      const fboPrimary = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fboPrimary);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texHdrA, 0);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, texPosMat, 0);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, texNormRough, 0);
+      gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+        throw new Error("Incomplete primary MRT FBO");
+      }
+
+      const fboHdrA = createSingleFbo(gl, texHdrA);
+      const fboHdrB = createSingleFbo(gl, texHdrB);
+      const fboReflSharp = createSingleFbo(gl, texReflSharp);
+      const fboTempA = createSingleFbo(gl, texTempA);
+      const fboTempB = createSingleFbo(gl, texTempB);
+      const fboLobe1 = createSingleFbo(gl, texLobe1);
+      const fboSubA = createSingleFbo(gl, texSubA);
+      const fboSubB = createSingleFbo(gl, texSubB);
+      const fboLobe2Sub = createSingleFbo(gl, texLobe2Sub);
+      const fboQuarterA = createSingleFbo(gl, texQuarterA);
+      const fboQuarterB = createSingleFbo(gl, texQuarterB);
+
+      // 4. Compile & link all GLSL ES 3.00 passes
+      const progPrimary = createGlProgram(gl, VS_FULLSCREEN, FS_PRIMARY, "Primary");
+      const progGlass = createGlProgram(gl, VS_FULLSCREEN, FS_GLASS, "Glass");
+      const progFloorRefl = createGlProgram(gl, VS_FULLSCREEN, FS_FLOOR_REFL, "FloorRefl");
+      const progBlur = createGlProgram(gl, VS_FULLSCREEN, FS_BLUR, "Blur");
+      const progDownsample = createGlProgram(gl, VS_FULLSCREEN, FS_DOWNSAMPLE2X, "Downsample2x");
+      const progFloorCombine = createGlProgram(gl, VS_FULLSCREEN, FS_FLOOR_COMBINE, "FloorCombine");
+      const progEdgeSSAA = createGlProgram(gl, VS_FULLSCREEN, FS_EDGE_SSAA, "EdgeSSAA");
+      const progVolSub = createGlProgram(gl, VS_FULLSCREEN, FS_VOL_SUB, "VolSub");
+      const progVolUpsampleMote = createGlProgram(gl, VS_FULLSCREEN, FS_VOL_UPSAMPLE_AND_MOTE, "VolUpsampleMote");
+      const progVolCombine = createGlProgram(gl, VS_FULLSCREEN, FS_VOL_COMBINE, "VolCombine");
+      const progTonemap = createGlProgram(gl, VS_FULLSCREEN, FS_TONEMAP, "Tonemap");
+      const progFinalScreen = createGlProgram(gl, VS_FULLSCREEN, FS_FINAL_SCREEN, "FinalScreen");
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+      window.__webgl2Active = true;
+      window.__sunlitRendererMode = "webgl2";
+      window.__gpuReallocCount = 0;
+
+      return {
+        gl,
+        vao,
+        randTex,
+        bookMetaTex,
+        bookColTex,
+        bookBandTex,
+        bookBand2Tex,
+        texHdrA, texHdrB, texPosMat, texNormRough, texReflSharp,
+        texTempA, texTempB, texLobe1,
+        texSubA, texSubB, texLobe2Sub,
+        texQuarterA, texQuarterB,
+        fboPrimary, fboHdrA, fboHdrB, fboReflSharp,
+        fboTempA, fboTempB, fboLobe1,
+        fboSubA, fboSubB, fboLobe2Sub,
+        fboQuarterA, fboQuarterB,
+        progPrimary, progGlass, progFloorRefl, progBlur, progDownsample,
+        progFloorCombine, progEdgeSSAA, progVolSub,
+        progVolUpsampleMote, progVolCombine, progTonemap, progFinalScreen,
+        uniformCache: new Map()
+      };
+    } catch (err) {
+      console.warn("WebGL2 HDR ray-tracer unavailable, falling back to CPU:", err);
+      window.__webgl2Active = false;
+      window.__sunlitRendererMode = "cpu";
+      return null;
+    }
+  }
+
+  function uLoc(eng, prog, name) {
+    let pMap = eng.uniformCache.get(prog);
+    if (!pMap) {
+      pMap = new Map();
+      eng.uniformCache.set(prog, pMap);
+    }
+    if (pMap.has(name)) return pMap.get(name);
+    const loc = eng.gl.getUniformLocation(prog, name);
+    pMap.set(name, loc);
+    return loc;
+  }
+
+  function bindSceneUniforms(eng, prog, bufW, bufH, resScale) {
+    const gl = eng.gl;
+    gl.useProgram(prog);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, eng.randTex);
+    gl.uniform1i(uLoc(eng, prog, "u_randTex"), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, eng.bookMetaTex);
+    gl.uniform1i(uLoc(eng, prog, "u_bookMetaTex"), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, eng.bookColTex);
+    gl.uniform1i(uLoc(eng, prog, "u_bookColTex"), 2);
+
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, eng.bookBandTex);
+    gl.uniform1i(uLoc(eng, prog, "u_bookBandTex"), 3);
+
+    gl.activeTexture(gl.TEXTURE4);
+    gl.bindTexture(gl.TEXTURE_2D, eng.bookBand2Tex);
+    gl.uniform1i(uLoc(eng, prog, "u_bookBand2Tex"), 4);
+
+    gl.uniform2f(uLoc(eng, prog, "u_res"), bufW, bufH);
+    gl.uniform1f(uLoc(eng, prog, "u_resScale"), resScale);
+    gl.uniform3f(uLoc(eng, prog, "u_camPos"), CAM_POS[0], CAM_POS[1], CAM_POS[2]);
+    gl.uniform1f(uLoc(eng, prog, "u_camYawRad"), CAM_YAW_RAD);
+    gl.uniform1f(uLoc(eng, prog, "u_camFovScale"), CAM_FOV_SCALE);
+    gl.uniform1f(uLoc(eng, prog, "u_camVShift"), CAM_V_SHIFT);
+
+    gl.uniform1f(uLoc(eng, prog, "u_roomXLeft"), ROOM_X_LEFT);
+    gl.uniform1f(uLoc(eng, prog, "u_roomXRight"), ROOM_X_RIGHT);
+    gl.uniform1f(uLoc(eng, prog, "u_roomYFloor"), ROOM_Y_FLOOR);
+    gl.uniform1f(uLoc(eng, prog, "u_roomYCeil"), ROOM_Y_CEIL);
+    gl.uniform1f(uLoc(eng, prog, "u_roomZBack"), ROOM_Z_BACK);
+    gl.uniform1f(uLoc(eng, prog, "u_backConcreteXMax"), BACK_CONCRETE_X_MAX);
+    gl.uniform1f(uLoc(eng, prog, "u_windowTopY"), WINDOW_TOP_Y);
+    gl.uniform1f(uLoc(eng, prog, "u_leftWallShiftX"), LEFT_WALL_SHIFT_X);
+    gl.uniform1f(uLoc(eng, prog, "u_concretePanelW"), CONCRETE_PANEL_W);
+
+    gl.uniform3f(uLoc(eng, prog, "u_sunDir"), SUN_DIR[0], SUN_DIR[1], SUN_DIR[2]);
+    gl.uniform3f(uLoc(eng, prog, "u_sunRadiance"), SUN_RADIANCE[0], SUN_RADIANCE[1], SUN_RADIANCE[2]);
+    gl.uniform3f(uLoc(eng, prog, "u_skyZenithRad"), SKY_ZENITH_RAD[0], SKY_ZENITH_RAD[1], SKY_ZENITH_RAD[2]);
+    gl.uniform4f(uLoc(eng, prog, "u_sunHorizPerp"), SUN_HORIZ_X, SUN_HORIZ_Z, SUN_PERP_X, SUN_PERP_Z);
+
+    gl.uniform3f(uLoc(eng, prog, "u_sconcePos"), SCONCE_POS[0], SCONCE_POS[1], SCONCE_POS[2]);
+    gl.uniform3f(uLoc(eng, prog, "u_sconceRadiance"), SCONCE_RADIANCE[0], SCONCE_RADIANCE[1], SCONCE_RADIANCE[2]);
+    gl.uniform3f(uLoc(eng, prog, "u_sconceBulbEmit"), SCONCE_BULB_EMIT[0], SCONCE_BULB_EMIT[1], SCONCE_BULB_EMIT[2]);
+
+    gl.uniform1f(uLoc(eng, prog, "u_mountainParallaxPhi"), MOUNTAIN_PARALLAX_PHI);
+    gl.uniform1f(uLoc(eng, prog, "u_duskFactor"), DUSK_FACTOR);
+    gl.uniform1f(uLoc(eng, prog, "u_highSunFactor"), HIGH_SUN_FACTOR);
+
+    gl.uniform4f(uLoc(eng, prog, "u_tableParams"), TABLE_SHIFT_X, TABLE_SHIFT_Z, TABLE_TOP_EX, TABLE_PLINTH_EX);
+    gl.uniform1f(uLoc(eng, prog, "u_tableApronEx"), TABLE_APRON_EX);
+    gl.uniform4f(uLoc(eng, prog, "u_bookCarafePos"), BOOK_CX, BOOK_CZ, CARAFE_CX, CARAFE_CZ);
+    gl.uniform2f(uLoc(eng, prog, "u_tumblerPos"), TUMBLER_CX, TUMBLER_CZ);
+    gl.uniform2f(uLoc(eng, prog, "u_rugX"), RUG_MIN_X, RUG_MAX_X);
+    gl.uniform4f(uLoc(eng, prog, "u_benchParams"), BENCH_CX, BENCH_EX, BENCH_LEG_X0, BENCH_LEG_X1);
+    gl.uniform1f(uLoc(eng, prog, "u_benchVesselX"), BENCH_VESSEL_X);
+
+    gl.uniform3f(uLoc(eng, prog, "u_chairBase"), CHAIR_BASE[0], CHAIR_BASE[1], CHAIR_BASE[2]);
+    gl.uniform3f(uLoc(eng, prog, "u_chairSeatC"), CHAIR_SEAT_C[0], CHAIR_SEAT_C[1], CHAIR_SEAT_C[2]);
+    gl.uniform3f(uLoc(eng, prog, "u_chairBackC"), CHAIR_BACK_C[0], CHAIR_BACK_C[1], CHAIR_BACK_C[2]);
+    gl.uniform3f(uLoc(eng, prog, "u_chairBolP0"), CHAIR_BOL_P0[0], CHAIR_BOL_P0[1], CHAIR_BOL_P0[2]);
+    gl.uniform3f(uLoc(eng, prog, "u_chairBolP1"), CHAIR_BOL_P1[0], CHAIR_BOL_P1[1], CHAIR_BOL_P1[2]);
+    gl.uniform3f(uLoc(eng, prog, "u_chairRot"), CHAIR_YAW, CHAIR_COS_YAW, CHAIR_SIN_YAW);
+
+    for (let i = 0; i < 8; i++) {
+      const sA = CHAIR_STEEL_SEGS[i][0];
+      const sB = CHAIR_STEEL_SEGS[i][1];
+      gl.uniform3f(uLoc(eng, prog, `u_chairSteelA[${i}]`), sA[0], sA[1], sA[2]);
+      gl.uniform3f(uLoc(eng, prog, `u_chairSteelB[${i}]`), sB[0], sB[1], sB[2]);
+    }
+
+    gl.uniform4f(
+      uLoc(eng, prog, "u_rightTransomY"),
+      RIGHT_TRANSOM_Y[0],
+      RIGHT_TRANSOM_Y[1],
+      RIGHT_TRANSOM_Y[2],
+      RIGHT_TRANSOM_Y[3]
+    );
+    gl.uniform1f(uLoc(eng, prog, "u_rightTransomY4"), RIGHT_TRANSOM_Y.length > 4 ? RIGHT_TRANSOM_Y[4] : 99.0);
+    gl.uniform1i(uLoc(eng, prog, "u_numRightTransoms"), RIGHT_TRANSOM_Y.length);
+
+    gl.uniform4f(
+      uLoc(eng, prog, "u_backMullionX"),
+      BACK_MULLION_X[0] || 99.0,
+      BACK_MULLION_X[1] || 99.0,
+      BACK_MULLION_X[2] || 99.0,
+      BACK_MULLION_X.length > 3 ? BACK_MULLION_X[3] : 99.0
+    );
+    gl.uniform1i(uLoc(eng, prog, "u_numBackMullions"), BACK_MULLION_X.length);
+
+    const vessels = MASTER_CATALOG.vessels;
+    for (let v = 0; v < 5; v++) {
+      const vo = vessels[v];
+      gl.uniform4f(uLoc(eng, prog, `u_vesselPosR0[${v}]`), vo.cx, vo.cy, vo.cz, vo.rx);
+      gl.uniform3f(uLoc(eng, prog, `u_vesselRyRzRough[${v}]`), vo.ry, vo.rz, vo.rough);
+      gl.uniform3f(uLoc(eng, prog, `u_vesselCol[${v}]`), vo.color[0], vo.color[1], vo.color[2]);
+    }
+  }
+
+  function runBlurPass(eng, srcTex, dstFbo, w, h, dx, dy, halfRadius, sigma) {
+    const gl = eng.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dstFbo);
+    gl.viewport(0, 0, w, h);
+    gl.useProgram(eng.progBlur);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, srcTex);
+    gl.uniform1i(uLoc(eng, eng.progBlur, "u_srcTex"), 0);
+    gl.uniform2i(uLoc(eng, eng.progBlur, "u_srcSize"), w, h);
+    gl.uniform2i(uLoc(eng, eng.progBlur, "u_dir"), dx, dy);
+    gl.uniform1i(uLoc(eng, eng.progBlur, "u_halfRadius"), halfRadius);
+    gl.uniform1f(uLoc(eng, eng.progBlur, "u_sigma"), sigma);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  function renderWebGL2Frame(eng, bufW, bufH) {
+    const gl = eng.gl;
+    const w = Math.min(bufW, GL_MAX_W);
+    const h = Math.min(bufH, GL_MAX_H);
+    const resScale = Math.min(1.0, Math.max(0.25, h / 1200.0));
+
+    gl.bindVertexArray(eng.vao);
+
+    // Pass 1A: Primary Ray-Tracing + Direct/Indirect Radiosity into MRT
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboPrimary);
+    gl.viewport(0, 0, w, h);
+    bindSceneUniforms(eng, eng.progPrimary, w, h, resScale);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    // Pass 1B: Dielectric Glass Vessel Reflection & Refraction (only executes on carafe/tumbler pixels)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboHdrB);
+    gl.viewport(0, 0, w, h);
+    bindSceneUniforms(eng, eng.progGlass, w, h, resScale);
+    gl.activeTexture(gl.TEXTURE5);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texHdrA);
+    gl.uniform1i(uLoc(eng, eng.progGlass, "u_hdrTex"), 5);
+    gl.activeTexture(gl.TEXTURE6);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texPosMat);
+    gl.uniform1i(uLoc(eng, eng.progGlass, "u_posMatTex"), 6);
+    gl.activeTexture(gl.TEXTURE7);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texNormRough);
+    gl.uniform1i(uLoc(eng, eng.progGlass, "u_normRoughTex"), 7);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, eng.fboHdrB);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, eng.fboHdrA);
+    gl.blitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+
+    // Pass 2A: Secondary Floor Reflections
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboReflSharp);
+    gl.viewport(0, 0, w, h);
+    bindSceneUniforms(eng, eng.progFloorRefl, w, h, resScale);
+    gl.activeTexture(gl.TEXTURE5);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texHdrA);
+    gl.uniform1i(uLoc(eng, eng.progFloorRefl, "u_hdrTex"), 5);
+    gl.activeTexture(gl.TEXTURE6);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texPosMat);
+    gl.uniform1i(uLoc(eng, eng.progFloorRefl, "u_posMatTex"), 6);
+    gl.activeTexture(gl.TEXTURE7);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texNormRough);
+    gl.uniform1i(uLoc(eng, eng.progFloorRefl, "u_normRoughTex"), 7);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    // Pass 2B: Anisotropic GGX Floor Reflection Lobes (lobe1 + half-res lobe2Sub)
+    const lobe1Half = Math.max(4, Math.round(18 * resScale));
+    const lobe1Sigma = 7.5 * resScale;
+    const lobe1IsoSigma = 2.2 * resScale;
+    const lobe1IsoHalf = Math.max(1, Math.ceil(lobe1IsoSigma * 2.6));
+    runBlurPass(eng, eng.texReflSharp, eng.fboTempA, w, h, 0, 1, lobe1Half, lobe1Sigma);
+    runBlurPass(eng, eng.texTempA, eng.fboTempB, w, h, 0, 1, lobe1IsoHalf, lobe1IsoSigma);
+    runBlurPass(eng, eng.texTempB, eng.fboLobe1, w, h, 1, 0, lobe1IsoHalf, lobe1IsoSigma);
+
+    const subW = Math.max(2, w >> 1);
+    const subH = Math.max(2, h >> 1);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboSubA);
+    gl.viewport(0, 0, subW, subH);
+    gl.useProgram(eng.progDownsample);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texReflSharp);
+    gl.uniform1i(uLoc(eng, eng.progDownsample, "u_srcTex"), 0);
+    gl.uniform2i(uLoc(eng, eng.progDownsample, "u_srcSize"), w, h);
+    gl.uniform1i(uLoc(eng, eng.progDownsample, "u_bloomMode"), 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    const lobe2Half = Math.max(5, Math.round(22 * resScale));
+    const lobe2VertSigma = 11.0 * resScale;
+    const lobe2IsoSigma = 2.4 * resScale;
+    const lobe2IsoHalf = Math.max(1, Math.ceil(lobe2IsoSigma * 2.6));
+    runBlurPass(eng, eng.texSubA, eng.fboSubB, subW, subH, 0, 1, lobe2Half, lobe2VertSigma);
+    runBlurPass(eng, eng.texSubB, eng.fboSubA, subW, subH, 0, 1, lobe2IsoHalf, lobe2IsoSigma);
+    runBlurPass(eng, eng.texSubA, eng.fboLobe2Sub, subW, subH, 1, 0, lobe2IsoHalf, lobe2IsoSigma);
+
+    // Pass 2C: Blend Floor Reflection Lobes into HDR Radiance (texHdrB)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboHdrB);
+    gl.viewport(0, 0, w, h);
+    bindSceneUniforms(eng, eng.progFloorCombine, w, h, resScale);
+    gl.activeTexture(gl.TEXTURE5);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texHdrA);
+    gl.uniform1i(uLoc(eng, eng.progFloorCombine, "u_hdrTex"), 5);
+    gl.activeTexture(gl.TEXTURE6);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texPosMat);
+    gl.uniform1i(uLoc(eng, eng.progFloorCombine, "u_posMatTex"), 6);
+    gl.activeTexture(gl.TEXTURE7);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texNormRough);
+    gl.uniform1i(uLoc(eng, eng.progFloorCombine, "u_normRoughTex"), 7);
+    gl.activeTexture(gl.TEXTURE8);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texReflSharp);
+    gl.uniform1i(uLoc(eng, eng.progFloorCombine, "u_sharpTex"), 8);
+    gl.activeTexture(gl.TEXTURE9);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texLobe1);
+    gl.uniform1i(uLoc(eng, eng.progFloorCombine, "u_lobe1Tex"), 9);
+    gl.activeTexture(gl.TEXTURE10);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texLobe2Sub);
+    gl.uniform1i(uLoc(eng, eng.progFloorCombine, "u_lobe2SubTex"), 10);
+    gl.uniform2i(uLoc(eng, eng.progFloorCombine, "u_subSize"), subW, subH);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    // Pass 3: Selective 3-Tap Rotated-Grid Silhouette Supersampling (texHdrB -> texHdrA)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboHdrA);
+    gl.viewport(0, 0, w, h);
+    bindSceneUniforms(eng, eng.progEdgeSSAA, w, h, resScale);
+    gl.activeTexture(gl.TEXTURE5);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texHdrB);
+    gl.uniform1i(uLoc(eng, eng.progEdgeSSAA, "u_hdrTex"), 5);
+    gl.activeTexture(gl.TEXTURE6);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texPosMat);
+    gl.uniform1i(uLoc(eng, eng.progEdgeSSAA, "u_posMatTex"), 6);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    // Pass 4: Quarter-Res Volumetric Tyndall Sunbeams & Airborne Dust Motes
+    const volW = Math.max(2, w >> 2);
+    const volH = Math.max(2, h >> 2);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboQuarterA);
+    gl.viewport(0, 0, volW, volH);
+    bindSceneUniforms(eng, eng.progVolSub, w, h, resScale);
+    gl.activeTexture(gl.TEXTURE5);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texHdrA);
+    gl.uniform1i(uLoc(eng, eng.progVolSub, "u_hdrTex"), 5);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboTempA);
+    gl.viewport(0, 0, w, h);
+    bindSceneUniforms(eng, eng.progVolUpsampleMote, w, h, resScale);
+    gl.activeTexture(gl.TEXTURE5);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texQuarterA);
+    gl.uniform1i(uLoc(eng, eng.progVolUpsampleMote, "u_volSubTex"), 5);
+    gl.uniform2i(uLoc(eng, eng.progVolUpsampleMote, "u_volSize"), volW, volH);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    const volBlurSigma = 1.8 * resScale;
+    const volBlurHalf = Math.max(1, Math.ceil(volBlurSigma * 2.6));
+    runBlurPass(eng, eng.texTempA, eng.fboTempB, w, h, 0, 1, volBlurHalf, volBlurSigma);
+    runBlurPass(eng, eng.texTempB, eng.fboLobe1, w, h, 1, 0, volBlurHalf, volBlurSigma);
+
+    const moteSigma = 1.0 * resScale;
+    const moteHalf = Math.max(1, Math.ceil(moteSigma * 2.6));
+    runBlurPass(eng, eng.texTempA, eng.fboTempB, w, h, 0, 1, moteHalf, moteSigma);
+    runBlurPass(eng, eng.texTempB, eng.fboReflSharp, w, h, 1, 0, moteHalf, moteSigma);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboHdrB);
+    gl.viewport(0, 0, w, h);
+    gl.useProgram(eng.progVolCombine);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texHdrA);
+    gl.uniform1i(uLoc(eng, eng.progVolCombine, "u_hdrTex"), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texLobe1);
+    gl.uniform1i(uLoc(eng, eng.progVolCombine, "u_volBlurTex"), 1);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texReflSharp);
+    gl.uniform1i(uLoc(eng, eng.progVolCombine, "u_moteBlurTex"), 2);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    // Pass 5: Dual-Lobe Bloom, Tilt-Shift Vignette, ACES Filmic & Lateral CA + Portra 160 Grain
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboSubA);
+    gl.viewport(0, 0, subW, subH);
+    gl.useProgram(eng.progDownsample);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texHdrB);
+    gl.uniform1i(uLoc(eng, eng.progDownsample, "u_srcTex"), 0);
+    gl.uniform2i(uLoc(eng, eng.progDownsample, "u_srcSize"), w, h);
+    gl.uniform1i(uLoc(eng, eng.progDownsample, "u_bloomMode"), 1);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    const bTightSigma = 1.8 * resScale;
+    const bTightHalf = Math.max(1, Math.ceil(bTightSigma * 2.6));
+    runBlurPass(eng, eng.texSubA, eng.fboSubB, subW, subH, 0, 1, bTightHalf, bTightSigma);
+    runBlurPass(eng, eng.texSubB, eng.fboLobe2Sub, subW, subH, 1, 0, bTightHalf, bTightSigma);
+
+    const hSub4W = Math.max(2, w >> 2);
+    const hSub4H = Math.max(2, h >> 2);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboQuarterA);
+    gl.viewport(0, 0, hSub4W, hSub4H);
+    gl.useProgram(eng.progDownsample);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texSubA);
+    gl.uniform1i(uLoc(eng, eng.progDownsample, "u_srcTex"), 0);
+    gl.uniform2i(uLoc(eng, eng.progDownsample, "u_srcSize"), subW, subH);
+    gl.uniform1i(uLoc(eng, eng.progDownsample, "u_bloomMode"), 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    const bWideSigma = 3.5 * resScale;
+    const bWideHalf = Math.max(1, Math.ceil(bWideSigma * 2.6));
+    runBlurPass(eng, eng.texQuarterA, eng.fboQuarterB, hSub4W, hSub4H, 0, 1, bWideHalf, bWideSigma);
+    runBlurPass(eng, eng.texQuarterB, eng.fboQuarterA, hSub4W, hSub4H, 1, 0, bWideHalf, bWideSigma);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, eng.fboTempA);
+    gl.viewport(0, 0, w, h);
+    gl.useProgram(eng.progTonemap);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texHdrB);
+    gl.uniform1i(uLoc(eng, eng.progTonemap, "u_hdrTex"), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texLobe2Sub);
+    gl.uniform1i(uLoc(eng, eng.progTonemap, "u_bTightTex"), 1);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texQuarterA);
+    gl.uniform1i(uLoc(eng, eng.progTonemap, "u_bWideTex"), 2);
+    gl.uniform2f(uLoc(eng, eng.progTonemap, "u_res"), w, h);
+    gl.uniform1f(uLoc(eng, eng.progTonemap, "u_camVShift"), CAM_V_SHIFT);
+    gl.uniform2i(uLoc(eng, eng.progTonemap, "u_hSub2Size"), subW, subH);
+    gl.uniform2i(uLoc(eng, eng.progTonemap, "u_hSub4Size"), hSub4W, hSub4H);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    // Final Screen Output (with top-down to bottom-up vertical coordinate flip)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, w, h);
+    gl.useProgram(eng.progFinalScreen);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, eng.texTempA);
+    gl.uniform1i(uLoc(eng, eng.progFinalScreen, "u_srgbTex"), 0);
+    gl.uniform2f(uLoc(eng, eng.progFinalScreen, "u_res"), w, h);
+    gl.uniform1f(uLoc(eng, eng.progFinalScreen, "u_resScale"), resScale);
+    gl.uniform1f(uLoc(eng, eng.progFinalScreen, "u_camVShift"), CAM_V_SHIFT);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  const GEO_BUCKETS = [
+    [1800, 900],
+    [1200, 900],
+    [1080, 1080],
+    [900, 1200],
+    [720, 1280]
+  ];
+
+  function getGeoBucketIndex(viewW, viewH) {
+    const ar = viewW / Math.max(1, viewH);
+    if (ar >= 1.65) return 0;
+    if (ar >= 1.18) return 1;
+    if (ar >= 0.88) return 2;
+    if (ar >= 0.68) return 3;
+    return 4;
+  }
+
+  const GEO_CACHE = GEO_BUCKETS.map(([bw, bh]) => {
+    computeResponsiveSceneState(bw, bh);
+    return {
+      bw,
+      bh,
+      LEFT_WALL_SHIFT_X,
+      ROOM_X_LEFT,
+      ROOM_X_RIGHT,
+      ROOM_Y_FLOOR,
+      ROOM_Y_CEIL,
+      ROOM_Z_BACK,
+      BACK_CONCRETE_X_MAX,
+      CONCRETE_PANEL_W,
+      WINDOW_TOP_Y,
+      RIGHT_TRANSOM_Y: RIGHT_TRANSOM_Y.slice(),
+      BACK_MULLION_X: BACK_MULLION_X.slice(),
+      BENCH_CX,
+      BENCH_EX,
+      BENCH_LEG_X0,
+      BENCH_LEG_X1,
+      BENCH_VESSEL_X,
+      SCONCE_POS: SCONCE_POS.slice(),
+      CHAIR_BASE: CHAIR_BASE.slice(),
+      CHAIR_YAW,
+      CHAIR_COS_YAW,
+      CHAIR_SIN_YAW,
+      CHAIR_SEAT_C: CHAIR_SEAT_C.slice(),
+      CHAIR_BACK_C: CHAIR_BACK_C.slice(),
+      CHAIR_BOL_P0: CHAIR_BOL_P0.slice(),
+      CHAIR_BOL_P1: CHAIR_BOL_P1.slice(),
+      CHAIR_STEEL_SEGS: CHAIR_STEEL_SEGS.map(seg => [seg[0].slice(), seg[1].slice()]),
+      TABLE_SHIFT_X,
+      TABLE_SHIFT_Z,
+      TABLE_TOP_EX,
+      TABLE_PLINTH_EX,
+      TABLE_APRON_EX,
+      BOOK_CX,
+      BOOK_CZ,
+      CARAFE_CX,
+      CARAFE_CZ,
+      TUMBLER_CX,
+      TUMBLER_CZ,
+      RUG_MIN_X,
+      RUG_MAX_X,
+      CAM_POS: CAM_POS.slice(),
+      CAM_YAW_RAD,
+      CAM_V_SHIFT
+    };
+  });
+
+  function applyCachedSceneAndLighting(cssW, cssH) {
+    const idx = getGeoBucketIndex(cssW, cssH);
+    const b = GEO_CACHE[idx];
+    const aspect = cssW / Math.max(1, cssH);
+    const narrowFactor = 1.0 - smoothstep(0.56, 1.35, aspect);
+
+    const solarW = cssW * 1.42;
+    const solarH = cssH * 1.78;
+    computeResponsiveSceneState(solarW, solarH);
+
+    // Viewport Width (cssW) -> Solar Azimuth Angle & Exterior Mountain Parallax
+    const wNorm = clamp((solarW - 1590.0) / 560.0, -1.35, 1.35);
+    const baseAzimuthRad = Math.atan2(0.585, 0.755);
+    const azScale = 1.0 - 0.55 * narrowFactor;
+    const sunAzimuthRad = baseAzimuthRad + (14.5 * wNorm * azScale * PI) / 180.0;
+    MOUNTAIN_PARALLAX_PHI = wNorm * 0.16;
+
+    // Viewport Height (cssH) -> Solar Elevation, Alpenglow Sky & 2700K Brass Sconce Radiosity
+    DUSK_FACTOR = 1.0 - smoothstep(520.0, 960.0, solarH);
+    HIGH_SUN_FACTOR = smoothstep(1060.0, 1500.0, solarH);
+
+    const baseElevRad = Math.asin(0.295 / sunLenInit);
+    const sunElevRad = clamp(
+      baseElevRad - (9.2 * DUSK_FACTOR * PI) / 180.0 + (5.2 * HIGH_SUN_FACTOR * PI) / 180.0,
+      (6.5 * PI) / 180.0,
+      (28.0 * PI) / 180.0
+    );
+
+    const cosElev = Math.cos(sunElevRad);
+    SUN_DIR[0] = cosElev * Math.cos(sunAzimuthRad);
+    SUN_DIR[1] = Math.sin(sunElevRad);
+    SUN_DIR[2] = cosElev * Math.sin(sunAzimuthRad);
+    const sLen = Math.hypot(SUN_DIR[0], SUN_DIR[1], SUN_DIR[2]) || 1.0;
+    SUN_DIR[0] /= sLen;
+    SUN_DIR[1] /= sLen;
+    SUN_DIR[2] /= sLen;
+
+    SUN_HORIZ_LEN = Math.hypot(SUN_DIR[0], SUN_DIR[2]) || 1.0;
+    SUN_HORIZ_X = -SUN_DIR[0] / SUN_HORIZ_LEN;
+    SUN_HORIZ_Z = -SUN_DIR[2] / SUN_HORIZ_LEN;
+    SUN_PERP_X = -SUN_HORIZ_Z;
+    SUN_PERP_Z = SUN_HORIZ_X;
+
+    SUN_RADIANCE[0] = 15.8 + 3.4 * DUSK_FACTOR - 0.5 * HIGH_SUN_FACTOR;
+    SUN_RADIANCE[1] = 11.4 - 2.9 * DUSK_FACTOR + 0.6 * HIGH_SUN_FACTOR;
+    SUN_RADIANCE[2] = 6.7 - 3.8 * DUSK_FACTOR + 1.0 * HIGH_SUN_FACTOR;
+
+    SKY_ZENITH_RAD[0] = 0.85 - 0.18 * DUSK_FACTOR + 0.05 * HIGH_SUN_FACTOR;
+    SKY_ZENITH_RAD[1] = 1.32 - 0.34 * DUSK_FACTOR + 0.10 * HIGH_SUN_FACTOR;
+    SKY_ZENITH_RAD[2] = 2.25 - 0.45 * DUSK_FACTOR + 0.18 * HIGH_SUN_FACTOR;
+
+    const sconceBoost = 1.0 + 1.55 * DUSK_FACTOR + 0.32 * narrowFactor;
+    SCONCE_RADIANCE[0] = 5.60 * sconceBoost;
+    SCONCE_RADIANCE[1] = 2.95 * sconceBoost;
+    SCONCE_RADIANCE[2] = 0.95 * sconceBoost;
+
+    const bulbBoost = 1.0 + 0.65 * DUSK_FACTOR + 0.18 * narrowFactor;
+    SCONCE_BULB_EMIT[0] = 16.0 * bulbBoost;
+    SCONCE_BULB_EMIT[1] = 10.5 * bulbBoost;
+    SCONCE_BULB_EMIT[2] = 4.2 * bulbBoost;
+
+    return b;
+  }
+
+  const canvas = document.getElementById("c");
+  const stageFrame = document.getElementById("stage-frame");
+  const stageCaption = document.getElementById("stage-caption");
+  const stageWorkspace = document.getElementById("stage-workspace");
+  const readoutDims = document.getElementById("readout-dims");
+
+  // Pre-allocate canvas backing store once at fixed 1600x960 pool dimensions
+  // so pointer resizing never triggers swapchain backing-store reallocation.
+  canvas.width = GL_MAX_W;
+  canvas.height = GL_MAX_H;
+  canvas.style.width = `${GL_MAX_W}px`;
+  canvas.style.height = `${GL_MAX_H}px`;
+
+  glEngine = null;
+  window.__gpuReallocCount = 0;
+
+  function renderStage(cssW, cssH) {
+    if (!glEngine && glEngine !== false) {
+      glEngine = initWebGL2Engine(canvas) || false;
+    }
+    const availW = Math.max(280, stageWorkspace.clientWidth || (window.innerWidth - 36));
+    const clampedW = Math.max(Math.min(354, availW), Math.min(availW, Math.round(cssW)));
+    const clampedH = Math.max(280, Math.min(900, Math.round(cssH)));
+
+    stageFrame.style.width = `${clampedW}px`;
+    stageFrame.style.height = `${clampedH}px`;
+    if (stageCaption) stageCaption.style.width = `${clampedW}px`;
+
+    const activeW = Math.min(GL_MAX_W, Math.max(160, clampedW));
+    const activeH = Math.min(GL_MAX_H, Math.max(120, clampedH));
+
+    applyCachedSceneAndLighting(clampedW, clampedH);
+
+    const t0 = performance.now();
+    if (glEngine) {
+      renderWebGL2Frame(glEngine, activeW, activeH);
+      glEngine.gl.flush();
+    }
+    const elapsedMs = performance.now() - t0;
+
+    window.__lastFrameTimeMs = elapsedMs;
+    window.__activeViewport = [activeW, activeH];
+    window.paintDone = true;
+    window.__renderComplete = true;
+    window.__RAYTRACER_DONE = true;
+    if (window.__resolvePaintReady) window.__resolvePaintReady();
+
+    if (readoutDims) readoutDims.textContent = `${clampedW} × ${clampedH}`;
+  }
+
+  let pointerState = null;
+  let rafPending = false;
+  let hasCustomSize = false;
+  let targetW = Math.min(1120, stageWorkspace.clientWidth || 1120);
+  let targetH = window.innerWidth <= 720 ? 440 : 546;
+
+  stageFrame.style.width = `${targetW}px`;
+  stageFrame.style.height = `${targetH}px`;
+  if (stageCaption) stageCaption.style.width = `${targetW}px`;
+
+  function scheduleStageRender(w, h) {
+    targetW = w;
+    targetH = h;
+    if (!rafPending) {
+      rafPending = true;
+      requestAnimationFrame(() => {
+        rafPending = false;
+        renderStage(targetW, targetH);
+      });
+    }
+  }
+
+  function attachResizeHandle(el, axis) {
+    if (!el) return;
+    el.addEventListener("pointerdown", (ev) => {
+      ev.preventDefault();
+      el.setPointerCapture(ev.pointerId);
+      el.classList.add("is-active");
+      hasCustomSize = true;
+      pointerState = {
+        pointerId: ev.pointerId,
+        axis,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        startW: stageFrame.clientWidth || targetW,
+        startH: stageFrame.clientHeight || targetH
+      };
+    });
+
+    el.addEventListener("pointermove", (ev) => {
+      if (!pointerState || pointerState.pointerId !== ev.pointerId) return;
+      const dx = ev.clientX - pointerState.startX;
+      const dy = ev.clientY - pointerState.startY;
+      const nextW = pointerState.axis === "y" ? pointerState.startW : pointerState.startW + dx;
+      const nextH = pointerState.axis === "x" ? pointerState.startH : pointerState.startH + dy;
+      scheduleStageRender(nextW, nextH);
+    });
+
+    const endDrag = (ev) => {
+      if (!pointerState || pointerState.pointerId !== ev.pointerId) return;
+      el.classList.remove("is-active");
+      if (el.hasPointerCapture(ev.pointerId)) {
+        el.releasePointerCapture(ev.pointerId);
+      }
+      pointerState = null;
+    };
+
+    el.addEventListener("pointerup", endDrag);
+    el.addEventListener("pointercancel", endDrag);
+  }
+
+  attachResizeHandle(document.getElementById("handle-e"), "x");
+  attachResizeHandle(document.getElementById("handle-s"), "y");
+  attachResizeHandle(document.getElementById("handle-se"), "xy");
+
+  window.resizeStage = (w, h) => {
+    hasCustomSize = true;
+    renderStage(w, h);
+  };
+
+  window.addEventListener("resize", () => {
+    const availW = Math.max(280, stageWorkspace.clientWidth);
+    const nextW = hasCustomSize ? Math.min(targetW, availW) : Math.min(1120, availW);
+    const nextH = hasCustomSize
+      ? targetH
+      : window.innerHeight > window.innerWidth
+        ? Math.min(820, Math.max(546, window.innerHeight - 260))
+        : window.innerWidth <= 720
+          ? 440
+          : 546;
+    scheduleStageRender(nextW, nextH);
+  });
+
+  if (document.readyState === "complete") {
+    setTimeout(() => renderStage(targetW, targetH), 20);
+  } else {
+    window.addEventListener("load", () => setTimeout(() => renderStage(targetW, targetH), 20));
+  }
+})();
+  </script>
+</body>
+</html>
